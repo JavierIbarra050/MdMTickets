@@ -17,7 +17,7 @@ html,body{margin:0;height:100%;background:#0A0806;color:#F4EAD2;font-family:Manr
 /* páginas deslizables */
 .pager{position:absolute;inset:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
 .pager::-webkit-scrollbar{display:none}
-.page{flex:0 0 100%;overflow-y:auto;overflow-x:hidden;scroll-snap-align:start;padding:22px 18px 84px;scrollbar-width:none;display:grid;gap:14px;align-content:start}
+.page{flex:0 0 100%;overflow-y:auto;overflow-x:hidden;scroll-snap-align:start;padding:calc(22px + env(safe-area-inset-top,0px)) 18px calc(84px + env(safe-area-inset-bottom,0px));scrollbar-width:none;display:grid;gap:14px;align-content:start}
 .app button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
 .dots{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:8px;padding:10px 12px;border-radius:999px;background:rgba(20,15,8,.55);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--line);z-index:5}
 .app .dots button{width:8px;height:8px;padding:0;border-radius:99px;background:rgba(233,205,134,.4);transition:width .3s,background .3s}
@@ -142,7 +142,7 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .app .seg button{white-space:nowrap;padding:0 14px}
 .toasts{position:absolute;left:16px;right:16px;top:calc(12px + env(safe-area-inset-top,0px));z-index:20;display:grid;gap:8px;pointer-events:none}
 .toast{padding:12px 16px;box-shadow:0 10px 30px rgba(0,0,0,.4);border-radius:16px;background:rgba(20,15,8,.9);border:1px solid var(--line);color:#FFF3C9;font-size:14px;-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);animation:in .3s both}
-.gate{display:grid;gap:12px;align-content:center;padding:24px}
+.gate{display:grid;gap:12px;align-content:center;padding:calc(24px + env(safe-area-inset-top,0px)) 24px calc(24px + env(safe-area-inset-bottom,0px))}
 .gate input{height:56px;border-radius:18px;border:1px solid var(--line);background:var(--glass);color:#FFF3C9;font:600 20px Manrope,system-ui,sans-serif;padding:0 16px;letter-spacing:.06em}
 .gate input:focus{outline:3px solid #E9CD86;outline-offset:2px}
 .gate-error{margin:0;min-height:1.4em;color:#FFB4A8;font-size:14px}
@@ -152,7 +152,7 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .sess-txt{flex:1;display:grid}.sess-txt small{opacity:.7;font-size:12px}
 .pulse{width:10px;height:10px;border-radius:50%;background:#FF5C5C;box-shadow:0 0 0 0 rgba(255,92,92,.6);animation:pulse 1.6s infinite}
 @keyframes pulse{70%{box-shadow:0 0 0 10px rgba(255,92,92,0)}}
-.sum{position:absolute;inset:0;z-index:30;display:grid;place-items:center;padding:20px;background:rgba(5,4,2,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:in .3s both}
+.sum{position:absolute;inset:0;z-index:30;display:grid;place-items:center;padding:calc(20px + env(safe-area-inset-top,0px)) 20px calc(20px + env(safe-area-inset-bottom,0px));background:rgba(5,4,2,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:in .3s both}
 .sum-card{width:100%;display:grid;gap:14px;background:rgba(24,18,10,.92)!important}
 .sum-win{display:grid;justify-items:center;gap:6px;text-align:center}
 .sum-win .av{width:72px;height:72px;font-size:38px}
