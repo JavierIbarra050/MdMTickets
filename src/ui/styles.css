@@ -123,7 +123,7 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 
 .fx{position:absolute;pointer-events:none;z-index:9;left:var(--x);bottom:14%;width:8px;height:8px;border-radius:50%;background:#FFF3C9;box-shadow:0 0 12px 3px var(--c);animation:rise var(--d) var(--w) ease-out both}
 .bump{animation:bump .35s!important}
-.nope{animation:nope .4s}
+.nope,.app .page .nope{animation:nope .4s}
 @keyframes bump{40%{transform:scale(1.14)}}
 @keyframes nope{25%{transform:translateX(-9px)}75%{transform:translateX(9px)}}
 @keyframes in{from{opacity:0;transform:translateY(18px)}}
@@ -211,10 +211,10 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .pager>.page:first-child .tot{padding:8px 6px}
 .pager>.page:first-child .play{padding:14px 16px}
 /* Entrada */
-.page.enter>*{animation:rise .65s cubic-bezier(.2,.9,.3,1.15) both;animation-delay:calc(var(--n,0)*80ms)}
+.page.enter>*{animation:rise .65s cubic-bezier(.2,.9,.3,1.15) backwards;animation-delay:calc(var(--n,0)*80ms)}
 @keyframes rise{from{opacity:0;transform:translateY(26px) scale(.97)}}
-.dial.enter .ring{animation:unlock 1.3s .25s cubic-bezier(.3,.8,.25,1) both}
-.dial.enter .mark{animation:drop .5s 1.2s cubic-bezier(.3,1.6,.5,1) both}
+.dial.enter .ring{animation:unlock 1.3s .25s cubic-bezier(.3,.8,.25,1) backwards}
+.dial.enter .mark{animation:drop .5s 1.2s cubic-bezier(.3,1.6,.5,1) backwards}
 @keyframes unlock{0%{transform:rotate(-300deg)}55%{transform:rotate(40deg)}75%{transform:rotate(-15deg)}100%{transform:rotate(0)}}
 @keyframes drop{from{transform:translateY(-14px);opacity:0}}
 /* Botón listo para apuntar */
@@ -227,7 +227,7 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .plus{position:absolute;left:50%;top:-6px;transform:translateX(-50%);font:800 13px Unbounded,system-ui,sans-serif;color:#FFF3C9;white-space:nowrap;pointer-events:none;animation:float-up .9s ease-out forwards}
 @keyframes float-up{to{transform:translate(-50%,-34px);opacity:0}}
 /* Partidón */
-.shake{animation:shake .55s}
+.app .page .shake{animation:shake .55s}
 @keyframes shake{15%{transform:translate(-6px,2px) rotate(-1deg)}30%{transform:translate(6px,-2px) rotate(1deg)}45%{transform:translate(-4px,1px)}60%{transform:translate(4px,-1px)}75%{transform:translate(-2px,0)}}
 .stamp{position:absolute;left:50%;top:38%;z-index:25;padding:10px 20px;border:4px solid #E9CD86;border-radius:14px;color:#FFF3C9;background:rgba(20,15,8,.85);font:800 30px Unbounded,system-ui,sans-serif;pointer-events:none;text-shadow:0 0 20px rgba(233,205,134,.8);animation:stamp 1.8s both}
 @keyframes stamp{0%{transform:translate(-50%,-50%) rotate(-10deg) scale(3);opacity:0}15%{transform:translate(-50%,-50%) rotate(-10deg) scale(1);opacity:1}80%{opacity:1;transform:translate(-50%,-50%) rotate(-10deg) scale(1)}100%{opacity:0;transform:translate(-50%,-60%) rotate(-10deg) scale(1.1)}}
