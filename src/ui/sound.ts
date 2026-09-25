@@ -44,3 +44,25 @@ export function safeClick(notch: boolean): void {
   tone.start(t)
   tone.stop(t + 0.1)
 }
+
+/** "Cha-ching" de caja registradora para las partidas grandes. */
+export function cashRegister(): void {
+  if (!ctx) return
+  const t = ctx.currentTime
+  ;[
+    [1318, 0],
+    [1760, 0.09],
+    [2637, 0.18],
+  ].forEach(([freq, delay]) => {
+    const o = ctx!.createOscillator()
+    const g = ctx!.createGain()
+    o.type = 'triangle'
+    o.frequency.value = freq
+    g.gain.setValueAtTime(0.0001, t + delay)
+    g.gain.exponentialRampToValueAtTime(0.22, t + delay + 0.01)
+    g.gain.exponentialRampToValueAtTime(0.0001, t + delay + 0.45)
+    o.connect(g).connect(ctx!.destination)
+    o.start(t + delay)
+    o.stop(t + delay + 0.5)
+  })
+}

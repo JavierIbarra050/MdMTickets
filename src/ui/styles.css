@@ -210,3 +210,25 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .pager>.page:first-child .me .av{width:40px;height:40px;font-size:22px}
 .pager>.page:first-child .tot{padding:8px 6px}
 .pager>.page:first-child .play{padding:14px 16px}
+/* Entrada */
+.page.enter>*{animation:rise .65s cubic-bezier(.2,.9,.3,1.15) both;animation-delay:calc(var(--n,0)*80ms)}
+@keyframes rise{from{opacity:0;transform:translateY(26px) scale(.97)}}
+.dial.enter .ring{animation:unlock 1.3s .25s cubic-bezier(.3,.8,.25,1) both}
+.dial.enter .mark{animation:drop .5s 1.2s cubic-bezier(.3,1.6,.5,1) both}
+@keyframes unlock{0%{transform:rotate(-300deg)}55%{transform:rotate(40deg)}75%{transform:rotate(-15deg)}100%{transform:rotate(0)}}
+@keyframes drop{from{transform:translateY(-14px);opacity:0}}
+/* Botón listo para apuntar */
+.app .go.ready{animation:shine 6s linear infinite,ready 1.6s ease-in-out infinite}
+@keyframes ready{50%{box-shadow:0 0 0 6px rgba(233,205,134,.18),0 14px 40px -6px #E9CD86}}
+/* Monedas */
+.app .coin{position:relative}
+.coin.flip{animation:flip .5s cubic-bezier(.3,1.3,.5,1)}
+@keyframes flip{from{transform:rotateY(0) scale(.9)}to{transform:rotateY(360deg) scale(1)}}
+.plus{position:absolute;left:50%;top:-6px;transform:translateX(-50%);font:800 13px Unbounded,system-ui,sans-serif;color:#FFF3C9;white-space:nowrap;pointer-events:none;animation:float-up .9s ease-out forwards}
+@keyframes float-up{to{transform:translate(-50%,-34px);opacity:0}}
+/* Partidón */
+.shake{animation:shake .55s}
+@keyframes shake{15%{transform:translate(-6px,2px) rotate(-1deg)}30%{transform:translate(6px,-2px) rotate(1deg)}45%{transform:translate(-4px,1px)}60%{transform:translate(4px,-1px)}75%{transform:translate(-2px,0)}}
+.stamp{position:absolute;left:50%;top:38%;z-index:25;padding:10px 20px;border:4px solid #E9CD86;border-radius:14px;color:#FFF3C9;background:rgba(20,15,8,.85);font:800 30px Unbounded,system-ui,sans-serif;pointer-events:none;text-shadow:0 0 20px rgba(233,205,134,.8);animation:stamp 1.8s both}
+@keyframes stamp{0%{transform:translate(-50%,-50%) rotate(-10deg) scale(3);opacity:0}15%{transform:translate(-50%,-50%) rotate(-10deg) scale(1);opacity:1}80%{opacity:1;transform:translate(-50%,-50%) rotate(-10deg) scale(1)}100%{opacity:0;transform:translate(-50%,-60%) rotate(-10deg) scale(1.1)}}
+.page.pre>*{opacity:0}
