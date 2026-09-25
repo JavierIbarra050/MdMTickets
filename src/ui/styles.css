@@ -186,3 +186,11 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .ach li.got .ach-e{filter:none;animation:in .5s both}
 .ach li b{font-size:14px}
 .ach li small{font-size:11px;opacity:.75;line-height:1.3}
+.budget{display:grid;gap:10px;padding:14px 16px}
+.bud-head{display:flex;justify-content:space-between;align-items:baseline}
+.bud-bar{height:10px;border-radius:99px;background:rgba(255,236,190,.1);overflow:hidden}
+.bud-bar i{display:block;height:100%;border-radius:inherit;background:var(--g);transition:width .6s cubic-bezier(.3,1.2,.5,1)}
+.budget.lvl-warn .bud-bar i{background:linear-gradient(90deg,#E9CD86,#FF9F43)}
+.budget.lvl-over .bud-bar i{background:linear-gradient(90deg,#FF9F43,#FF5C5C)}
+.budget.lvl-over{border-color:rgba(255,92,92,.55)}
+.bud-txt{margin:0;font-size:13px}.bud-txt b{color:#FFF3C9}
