@@ -1,4 +1,4 @@
-import { gamesOf, totals, type Game, type PlayerId } from '../domain'
+import { chase, gamesOf, ranking, totals, type Game, type Metric, type Period, type PlayerId, type RankRow } from '../domain'
 import { eur, num } from '../format'
 import { JEWELS, PLAYERS, playerById, type Player } from '../players'
 import { prefs } from '../prefs'
@@ -14,7 +14,31 @@ interface State {
   jewels: Partial<Record<PlayerId, string>>
   tickets: number
   cents: number
+  page: number
+  period: Period
+  metric: Metric
 }
+
+const METRICS: Array<[Metric, string]> = [
+  ['tickets', 'Tickets'],
+  ['cents', 'Gastado'],
+  ['ratio', 'Tickets/€'],
+]
+const PERIODS: Array<[Period, string]> = [
+  ['today', 'Hoy'],
+  ['all', 'Siempre'],
+]
+const UNIT: Record<Metric, string> = { tickets: ' tickets', cents: '', ratio: ' tk/€' }
+
+const fmtValue = (metric: Metric, v: number | null): string =>
+  v === null ? '–' : metric === 'cents' ? eur(v) : num(v)
+
+const CROWN = `<svg class="crown" viewBox="0 0 36 24" aria-hidden="true"><defs><linearGradient id="cg" x1="0" x2="1"><stop offset="0" stop-color="#C69C47"/><stop offset=".45" stop-color="#FFF3C9"/><stop offset="1" stop-color="#B8862F"/></linearGradient></defs><path d="M3 21 5 6l8 7 5-11 5 11 8-7 2 15z" fill="url(#cg)"/></svg>`
+
+const seg = <T extends string>(id: string, options: Array<[T, string]>, current: T): string =>
+  `<div class="seg" id="${id}" style="--n:${options.length};--k:${options.findIndex(([v]) => v === current)}"><i></i>${options
+    .map(([v, l]) => `<button data-v="${v}" aria-pressed="${v === current}">${l}</button>`)
+    .join('')}</div>`
 
 const ago = (t: number): string => {
   const m = Math.round((Date.now() - t) / 60000)
@@ -31,6 +55,9 @@ export async function mountApp(root: HTMLElement, store: GameStore): Promise<voi
     jewels: prefs.read('tk.jewels', {}),
     tickets: 0,
     cents: DEFAULT_CENTS,
+    page: 0,
+    period: 'today',
+    metric: 'tickets',
   }
   root.innerHTML = '<div class="app" id="shell"><div class="bgfx"><span></span></div><div id="screen"></div></div>'
   const shell = root.querySelector<HTMLElement>('#shell')!
@@ -74,7 +101,40 @@ export async function mountApp(root: HTMLElement, store: GameStore): Promise<voi
       last.length
         ? `<ul>${last.map((g) => `<li><span class="h-tk">${num(g.tickets)} <small>tickets</small></span><span class="h-eur">${eur(g.cents)}</span><span class="h-t">${ago(g.createdAt)}</span><button class="del" data-id="${g.id}" aria-label="Quitar partida">×</button></li>`).join('')}</ul>`
         : '<p class="empty">Aún no hay partidas. Apunta la primera arriba.</p>'
-    }</div></section>`
+    }</div>
+<p class="swipe-hint">Desliza para ver el ranking <i>→</i></p></section>`
+  }
+
+  const rankHTML = (): string => `
+<section class="page"><p class="eyebrow">Clasificación</p>
+<div class="rk-head"><h2>Ranking</h2>${seg('period', PERIODS, s.period)}</div>
+${seg('metric', METRICS, s.metric)}
+<div id="board"></div></section>`
+
+  function renderBoard(): void {
+    const m = s.metric
+    const rows = ranking(s.games, PLAYERS.map((p) => p.id), m, s.period)
+    const top = rows[0].value || 1
+    const pod = (r: RankRow, i: number): string => {
+      const p = playerById(r.player)
+      return `<div class="pod p${i + 1}${r.player === s.user ? ' you' : ''}" style="--c:${color(p)};--i:${i}">${i === 0 ? CROWN : ''}<span class="av">${p.emoji}</span><b class="nm">${p.name}</b><span class="val">${fmtValue(m, r.value)}</span><small>${r.player === s.user ? 'tú' : ''}</small><div class="ped"><span>${i + 1}</span></div></div>`
+    }
+    const c = chase(rows, s.user!)
+    const msg =
+      c.kind === 'first'
+        ? 'Vas primero. Que no te pillen.'
+        : c.kind === 'out'
+          ? 'Apunta una partida para entrar en este ranking.'
+          : `Te faltan <b>${fmtValue(m, c.diff)}${UNIT[m]}</b> para pasar a ${playerById(c.ahead).name}.`
+    $('#board').innerHTML = `<div class="podium">${[1, 0, 2].map((i) => pod(rows[i], i)).join('')}</div>
+<ol class="rest">${rows
+      .slice(3)
+      .map((r, i) => {
+        const p = playerById(r.player)
+        return `<li class="${r.player === s.user ? 'you' : ''}" style="--c:${color(p)};--i:${i}"><span class="pos">${i + 4}</span><span class="av">${p.emoji}</span><span class="nm">${p.name}${r.player === s.user ? ' · tú' : ''}</span><span class="val">${fmtValue(m, r.value)}${r.value === null ? '' : UNIT[m]}</span><i class="bar" style="--w:${((r.value ?? 0) / top) * 100}%"></i></li>`
+      })
+      .join('')}</ol>
+<p class="chase">${msg}</p>`
   }
 
   function render(): void {
@@ -85,12 +145,44 @@ export async function mountApp(root: HTMLElement, store: GameStore): Promise<voi
       $$('.person').forEach((b) => (b.onclick = () => choose(b.dataset.id as PlayerId)))
       return
     }
-    screen.innerHTML = playHTML(u)
+    screen.innerHTML = `<div class="pager" id="pager">${playHTML(u)}${rankHTML()}</div><nav class="dots"><button data-p="0" aria-label="Apuntar partida"></button><button data-p="1" aria-label="Ranking"></button></nav>`
+    bindPager()
+    renderBoard()
     bindPlay(u)
+  }
+
+  function bindPager(): void {
+    const pager = $('#pager')
+    const dots = $$('.dots button')
+    const mark = () => dots.forEach((d, i) => d.classList.toggle('on', i === s.page))
+    pager.scrollLeft = s.page * pager.clientWidth
+    mark()
+    pager.onscroll = () => {
+      const p = Math.round(pager.scrollLeft / pager.clientWidth)
+      if (p === s.page) return
+      s.page = p
+      mark()
+      if (p === 1) renderBoard()
+    }
+    dots.forEach((d) => (d.onclick = () => pager.scrollTo({ left: Number(d.dataset.p) * pager.clientWidth, behavior: 'smooth' })))
+    $$('.seg').forEach((sg) => {
+      const buttons = [...sg.querySelectorAll<HTMLButtonElement>('button')]
+      buttons.forEach(
+        (b, i) =>
+          (b.onclick = () => {
+            if (sg.id === 'period') s.period = b.dataset.v as Period
+            else s.metric = b.dataset.v as Metric
+            sg.style.setProperty('--k', String(i))
+            buttons.forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+            renderBoard()
+          }),
+      )
+    })
   }
 
   function choose(id: PlayerId | null): void {
     s.user = id
+    s.page = 0
     prefs.write('tk.user', id)
     render()
   }
@@ -111,6 +203,7 @@ export async function mountApp(root: HTMLElement, store: GameStore): Promise<voi
           prefs.write('tk.jewels', s.jewels)
           shell.style.setProperty('--me', b.dataset.c!)
           $$('.jw').forEach((x) => x.setAttribute('aria-pressed', String(x === b)))
+          renderBoard()
         }),
     )
 
