@@ -1,6 +1,6 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Game, PlayerId } from './domain'
-import type { GameStore, NewGame } from './store'
+import type { GameChange, GameStore, NewGame } from './store'
 
 interface GameRow {
   id: string
@@ -49,6 +49,19 @@ export class SupabaseGameStore implements GameStore {
     const { data, error } = await this.client.rpc('add_game', { code: this.code, ...game })
     if (error) fail(error)
     return rowToGame(data as GameRow)
+  }
+
+  subscribe(onChange: (change: GameChange) => void): () => void {
+    const channel = this.client
+      .channel('games')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'games' }, (p) =>
+        onChange({ type: 'added', game: rowToGame(p.new as GameRow) }),
+      )
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'games' }, (p) =>
+        onChange({ type: 'removed', id: (p.old as { id: string }).id }),
+      )
+      .subscribe()
+    return () => void this.client.removeChannel(channel)
   }
 
   async remove(id: string): Promise<void> {

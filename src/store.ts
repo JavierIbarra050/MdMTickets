@@ -3,10 +3,14 @@ import { prefs } from './prefs'
 
 export type NewGame = Omit<Game, 'id' | 'createdAt'>
 
+export type GameChange = { type: 'added'; game: Game } | { type: 'removed'; id: string }
+
 export interface GameStore {
   load(): Promise<Game[]>
   add(game: NewGame): Promise<Game>
   remove(id: string): Promise<void>
+  /** Avisa de cambios hechos desde otros móviles. Devuelve la función para dejar de escuchar. */
+  subscribe?(onChange: (change: GameChange) => void): () => void
 }
 
 /** Partidas guardadas solo en este navegador. Se sustituye por Supabase en #14. */
