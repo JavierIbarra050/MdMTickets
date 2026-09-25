@@ -179,3 +179,10 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .app .h-act .del{grid-column:auto;grid-row:auto}
 .play.editing{border-color:#E9CD86;box-shadow:0 0 0 2px rgba(233,205,134,.35)}
 .cancel-edit{justify-self:center}
+.ach ul{list-style:none;margin:10px 0 0;padding:0;display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+.ach li{display:grid;justify-items:center;text-align:center;gap:2px;padding:12px 8px;border-radius:18px;background:rgba(255,236,190,.04);border:1px dashed rgba(233,205,134,.2);opacity:.55}
+.ach li.got{opacity:1;border-style:solid;border-color:rgba(233,205,134,.5);background:linear-gradient(180deg,rgba(233,205,134,.16),rgba(233,205,134,.03))}
+.ach-e{font-size:28px;filter:grayscale(1)}
+.ach li.got .ach-e{filter:none;animation:in .5s both}
+.ach li b{font-size:14px}
+.ach li small{font-size:11px;opacity:.75;line-height:1.3}
