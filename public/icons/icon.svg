@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="35%" r="75%">
+      <stop offset="0" stop-color="#3A2610"/>
+      <stop offset="1" stop-color="#0A0806"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#FFF3C9"/>
+      <stop offset=".35" stop-color="#E9CD86"/>
+      <stop offset=".6" stop-color="#B8862F"/>
+      <stop offset="1" stop-color="#F4DB98"/>
+    </linearGradient>
+    <radialGradient id="hub" cx="40%" cy="30%" r="70%">
+      <stop offset="0" stop-color="#2A2012"/>
+      <stop offset="1" stop-color="#0A0806"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- borde estriado -->
+  <circle cx="256" cy="268" r="170" fill="#6E5122"/>
+  <circle cx="256" cy="268" r="164" fill="none" stroke="#F4DB98" stroke-width="14" stroke-dasharray="7 7"/>
+  <!-- cara dorada con marcas -->
+  <circle cx="256" cy="268" r="150" fill="url(#gold)"/>
+  <circle cx="256" cy="268" r="140" fill="none" stroke="#3A2608" stroke-width="12" stroke-dasharray="1.5 7.3" opacity=".8"/>
+  <circle cx="256" cy="268" r="136" fill="none" stroke="#3A2608" stroke-width="20" stroke-dasharray="3 82.45" opacity=".9"/>
+  <!-- centro -->
+  <circle cx="256" cy="268" r="74" fill="url(#hub)" stroke="url(#gold)" stroke-width="8"/>
+  <circle cx="256" cy="268" r="22" fill="url(#gold)"/>
+  <!-- flecha -->
+  <path d="M232 70h48l-24 40z" fill="#C0213F" stroke="#FFF3C9" stroke-width="4" stroke-linejoin="round"/>
+</svg>

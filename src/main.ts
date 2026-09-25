@@ -28,3 +28,7 @@ async function start(): Promise<void> {
 }
 
 void start()
+
+if ('serviceWorker' in navigator && import.meta.env.PROD) {
+  void navigator.serviceWorker.register(`${import.meta.env.BASE_URL}sw.js`)
+}
