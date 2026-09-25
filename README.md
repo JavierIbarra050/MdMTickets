@@ -45,3 +45,10 @@ VITE_SUPABASE_ANON_KEY=la-clave-anon-public
 ```
 
 Para el despliegue, esos dos valores van como *variables* del repo en **Settings → Secrets and variables → Actions → Variables**. La clave `anon` es pública por diseño; la `service_role` no se usa nunca.
+
+## Instalar en el móvil
+
+- **iPhone (Safari):** abre la web, toca **Compartir** y luego **Añadir a pantalla de inicio**.
+- **Android (Chrome):** abre la web, toca el menú **⋮** y luego **Instalar aplicación** (o **Añadir a pantalla de inicio**).
+
+Se abre a pantalla completa con su icono. Sin conexión la app abre, pero para apuntar y ver el ranking hace falta internet.
