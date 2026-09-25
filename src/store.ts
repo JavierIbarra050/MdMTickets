@@ -1,15 +1,22 @@
-import type { Game } from './domain'
+import type { Game, Session } from './domain'
 import { prefs } from './prefs'
 
 export type NewGame = Omit<Game, 'id' | 'createdAt'>
 
-export type GameChange = { type: 'added'; game: Game } | { type: 'removed'; id: string }
+export type GameChange =
+  | { type: 'added'; game: Game }
+  | { type: 'removed'; id: string }
+  | { type: 'session'; session: Session }
 
 export interface GameStore {
   load(): Promise<Game[]>
   add(game: NewGame): Promise<Game>
   remove(id: string): Promise<void>
   /** Avisa de cambios hechos desde otros móviles. Devuelve la función para dejar de escuchar. */
+  /** Sesiones de tarde; solo existen con la base de datos compartida. */
+  loadSessions?(): Promise<Session[]>
+  startSession?(): Promise<Session>
+  endSession?(): Promise<Session | null>
   subscribe?(onChange: (change: GameChange) => void): () => void
 }
 

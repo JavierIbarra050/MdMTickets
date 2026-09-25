@@ -6,6 +6,13 @@ export interface Game {
   tickets: number
   cents: number
   createdAt: number
+  sessionId?: string | null
+}
+
+export interface Session {
+  id: string
+  startedAt: number
+  endedAt: number | null
 }
 
 export interface Totals {
@@ -24,7 +31,7 @@ export function totals(games: Game[]): Totals {
 export const gamesOf = (games: Game[], player: PlayerId): Game[] => games.filter((g) => g.player === player)
 
 export type Metric = 'tickets' | 'cents' | 'ratio'
-export type Period = 'today' | 'all'
+export type Period = 'session' | 'today' | 'all'
 
 export interface RankRow {
   player: PlayerId
@@ -36,8 +43,20 @@ export interface RankRow {
 const sameDay = (a: number, b: number): boolean => new Date(a).toDateString() === new Date(b).toDateString()
 
 /** Ordena a los jugadores por la métrica, de mayor a menor; los que no tienen valor van al final. */
-export function ranking(games: Game[], players: PlayerId[], metric: Metric, period: Period, now = Date.now()): RankRow[] {
-  const inPeriod = period === 'all' ? games : games.filter((g) => sameDay(g.createdAt, now))
+export function ranking(
+  games: Game[],
+  players: PlayerId[],
+  metric: Metric,
+  period: Period,
+  now = Date.now(),
+  sessionId: string | null = null,
+): RankRow[] {
+  const inPeriod =
+    period === 'all'
+      ? games
+      : period === 'today'
+        ? games.filter((g) => sameDay(g.createdAt, now))
+        : games.filter((g) => sessionId !== null && g.sessionId === sessionId)
   return players
     .map((player) => {
       const t = totals(gamesOf(inPeriod, player))
@@ -58,4 +77,24 @@ export function chase(rows: RankRow[], me: PlayerId): Chase {
   if (i === 0) return { kind: 'first' }
   const ahead = rows[i - 1]
   return { kind: 'behind', ahead: ahead.player, diff: (ahead.value ?? 0) - (rows[i].value ?? 0) }
+}
+
+/** La sesión abierta o, si no hay, la última que se cerró. */
+export const currentSession = (sessions: Session[]): Session | null =>
+  sessions.find((x) => x.endedAt === null) ?? [...sessions].sort((a, b) => b.startedAt - a.startedAt)[0] ?? null
+
+export interface SessionSummary {
+  games: number
+  tickets: number
+  cents: number
+  winner: PlayerId | null
+  best: Game | null
+}
+
+export function summarize(games: Game[], sessionId: string, players: PlayerId[]): SessionSummary {
+  const played = games.filter((g) => g.sessionId === sessionId)
+  const t = totals(played)
+  const [first] = ranking(played, players, 'tickets', 'all')
+  const best = played.reduce<Game | null>((top, g) => (top === null || g.tickets > top.tickets ? g : top), null)
+  return { games: played.length, tickets: t.tickets, cents: t.cents, winner: first?.value ? first.player : null, best }
 }
