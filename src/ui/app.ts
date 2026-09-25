@@ -307,6 +307,33 @@ ${seg('metric', METRICS, s.metric)}
     }
   }
 
+  store.subscribe?.((change) => {
+    if (change.type === 'added') {
+      if (s.games.some((g) => g.id === change.game.id)) return
+      s.games.push(change.game)
+    } else {
+      if (!s.games.some((g) => g.id === change.id)) return
+      s.games = s.games.filter((g) => g.id !== change.id)
+    }
+    refreshLive()
+  })
+
+  /** Actualiza totales y ranking sin repintar la pantalla, para no perder lo marcado en la rueda. */
+  function refreshLive(): void {
+    if (!s.user || !screen.querySelector('#board')) return
+    renderBoard()
+    const t = totals(mine())
+    const set = (sel: string, text: string) => {
+      const el = $(sel)
+      if (el.textContent === text) return
+      el.textContent = text
+      bump(el)
+    }
+    set('#tTk', num(t.tickets))
+    set('#tEur', eur(t.cents))
+    set('#tR', t.ratio === null ? '–' : num(t.ratio))
+  }
+
   render()
   if (loadFailed) toast('No se han podido cargar las partidas. Comprueba la conexión.')
 }
