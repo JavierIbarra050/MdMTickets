@@ -5,6 +5,7 @@ export type NewGame = Pick<Game, 'player' | 'tickets' | 'cents' | 'machineId'>
 
 export type GameChange =
   | { type: 'added'; game: Game }
+  | { type: 'updated'; game: Game }
   | { type: 'removed'; id: string }
   | { type: 'session'; session: Session }
   | { type: 'machine'; machine: Machine }
@@ -13,6 +14,7 @@ export interface GameStore {
   load(): Promise<Game[]>
   add(game: NewGame): Promise<Game>
   remove(id: string): Promise<void>
+  update?(id: string, changes: Omit<NewGame, 'player'>): Promise<Game>
   /** Avisa de cambios hechos desde otros móviles. Devuelve la función para dejar de escuchar. */
   /** Sesiones de tarde; solo existen con la base de datos compartida. */
   loadSessions?(): Promise<Session[]>
@@ -36,6 +38,13 @@ export class LocalGameStore implements GameStore {
     const saved: Game = { ...game, id: crypto.randomUUID(), createdAt: Date.now() }
     prefs.write(this.key, [...(await this.load()), saved])
     return saved
+  }
+
+  async update(id: string, changes: Omit<NewGame, 'player'>): Promise<Game> {
+    const games = await this.load()
+    const updated = { ...games.find((g) => g.id === id)!, ...changes }
+    prefs.write(this.key, games.map((g) => (g.id === id ? updated : g)))
+    return updated
   }
 
   async remove(id: string): Promise<void> {
