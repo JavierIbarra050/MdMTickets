@@ -2,6 +2,7 @@ import {
   chase,
   currentSession,
   gamesOf,
+  overtakers,
   ranking,
   summarize,
   totals,
@@ -93,13 +94,16 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
   const $ = <T extends HTMLElement = HTMLElement>(sel: string) => screen.querySelector<T>(sel)!
   const $$ = <T extends HTMLElement = HTMLElement>(sel: string) => [...screen.querySelectorAll<T>(sel)]
 
+  const toasts = document.createElement('div')
+  toasts.className = 'toasts'
+  toasts.setAttribute('role', 'status')
+  shell.append(toasts)
   const toast = (text: string): void => {
     const t = document.createElement('div')
     t.className = 'toast'
-    t.setAttribute('role', 'status')
     t.textContent = text
-    shell.append(t)
-    setTimeout(() => t.remove(), 3200)
+    toasts.append(t)
+    setTimeout(() => t.remove(), 3800)
   }
 
   /** Ejecuta una escritura y avisa si falla; devuelve false si no se pudo. */
@@ -407,13 +411,27 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
     if (change.type === 'session') return upsertSession(change.session)
     if (change.type === 'added') {
       if (s.games.some((g) => g.id === change.game.id)) return
+      const standings = () => ranking(s.games, PLAYERS.map((p) => p.id), 'tickets', s.period, Date.now(), currentSession(s.sessions)?.id ?? null)
+      const before = standings()
       s.games.push(change.game)
+      announce(change.game, before, standings())
     } else {
       if (!s.games.some((g) => g.id === change.id)) return
       s.games = s.games.filter((g) => g.id !== change.id)
     }
     refreshLive()
   })
+
+  /** Avisos de lo que hacen los demás: su partida y si te adelantan. */
+  function announce(game: Game, before: RankRow[], after: RankRow[]): void {
+    if (!s.user || game.player === s.user) return
+    const p = playerById(game.player)
+    toast(game.tickets ? `${p.emoji} ${p.name} acaba de sacar ${num(game.tickets)} tickets` : `${p.emoji} ${p.name} ha apuntado una partida`)
+    overtakers(before, after, s.user).forEach((id) => {
+      const o = playerById(id)
+      toast(`${o.emoji} ${o.name} te ha adelantado en el ranking`)
+    })
+  }
 
   /** Actualiza totales y ranking sin repintar la pantalla, para no perder lo marcado en la rueda. */
   function refreshLive(): void {
