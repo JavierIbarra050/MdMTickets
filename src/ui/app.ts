@@ -24,6 +24,7 @@ import { prefs } from '../prefs'
 import type { GameStore } from '../store'
 import { WrongGroupCodeError } from '../supabaseStore'
 import { bindDial, dialHTML } from './dial'
+import { cashRegister, unlockAudio } from './sound'
 
 const COINS = [50, 100, 200] as const
 const DEFAULT_CENTS = 100
@@ -291,6 +292,37 @@ ${seg('metric', METRICS, s.metric)}
     renderSession()
     bindPlay(u)
     checkAchievements()
+    if (!entered) {
+      entered = true
+      enterAnimation()
+    }
+  }
+
+  let entered = false
+
+  /** Entrada: bloques escalonados, la rueda se "abre" y los totales cuentan desde cero. */
+  function enterAnimation(): void {
+    const page = screen.querySelector<HTMLElement>('.page')!
+    const start = () => {
+      page.classList.remove('pre')
+      ;[...page.children].forEach((el, i) => (el as HTMLElement).style.setProperty('--n', String(i)))
+      page.classList.add('enter')
+      $('#dial').classList.add('enter')
+      const t = totals(mine())
+      countUp($('#tTk'), 0, t.tickets, num)
+      countUp($('#tEur'), 0, t.cents, eur)
+      if (t.ratio !== null) countUp($('#tR'), 0, t.ratio, num)
+    }
+    // Si la pantalla de carga sigue delante, se espera a que empiece a irse.
+    const splash = document.querySelector('#splash')
+    if (!splash || splash.classList.contains('out')) return start()
+    page.classList.add('pre')
+    const watch = new MutationObserver(() => {
+      if (!splash.classList.contains('out')) return
+      watch.disconnect()
+      start()
+    })
+    watch.observe(splash, { attributes: true, attributeFilter: ['class'] })
   }
 
   // Presupuesto por sesión: es personal, así que vive en este móvil.
@@ -466,10 +498,13 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
     )
 
     const tkv = $('#tkv')
+    const goBtn = $('#go')
+    const markReady = () => goBtn.classList.toggle('ready', s.tickets > 0)
     const dial = bindDial($('#dial'), (tickets) => {
       s.tickets = tickets
       tkv.textContent = num(tickets)
       bump(tkv)
+      markReady()
     })
 
     const eurv = $('#eurv')
@@ -478,7 +513,20 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
       eurv.textContent = eur(c)
       bump(eurv)
     }
-    $$('.coin').forEach((c) => (c.onclick = () => setCents(s.cents + Number(c.dataset.c))))
+    $$('.coin').forEach(
+      (c) =>
+        (c.onclick = () => {
+          setCents(s.cents + Number(c.dataset.c))
+          c.classList.remove('flip')
+          void c.offsetWidth
+          c.classList.add('flip')
+          const plus = document.createElement('span')
+          plus.className = 'plus'
+          plus.textContent = `+${eur(Number(c.dataset.c))}`
+          c.append(plus)
+          setTimeout(() => plus.remove(), 900)
+        }),
+    )
     $('#clr').onclick = () => setCents(0)
 
     $$('.edit').forEach(
@@ -539,12 +587,17 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
       s.editing = null
       s.cents = DEFAULT_CENTS
       render()
+      // La rueda vuelve girando a 0 en vez de saltar.
+      $('#ring').animate([{ transform: `rotate(${fields.tickets * 3.6}deg)` }, { transform: 'rotate(0deg)' }], {
+        duration: 900,
+        easing: 'cubic-bezier(.3,1.25,.5,1)',
+      })
       const budgetNow = worsened(budgetBefore, budgetLevel())
       if (budgetNow) toast(budgetNow === 'over' ? '🛑 Te has pasado del presupuesto de hoy' : '⚠️ Ya llevas el 80 % del presupuesto de hoy')
       if (editing) {
         toast('Partida corregida')
       } else {
-        celebrate()
+        celebrate(fields.tickets)
         const id = (saved as Game).id
         toast(`Apuntada: ${num(fields.tickets)} tickets por ${eur(fields.cents)}`, {
           label: 'Deshacer',
@@ -577,9 +630,26 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
     bump(el)
   }
 
-  function celebrate(): void {
+  const BIG_GAME = 100
+  const JACKPOT = 200
+
+  function celebrate(tickets: number): void {
+    const big = tickets >= BIG_GAME
     const palette = ['#FFF3C9', '#E9CD86', '#C69C47']
-    for (let i = 0; i < 28; i++) {
+    if (big) {
+      unlockAudio()
+      cashRegister()
+      navigator.vibrate?.([30, 40, 60])
+      const card = $('.play')
+      card.classList.add('shake')
+      setTimeout(() => card.classList.remove('shake'), 600)
+      const stamp = document.createElement('div')
+      stamp.className = 'stamp'
+      stamp.textContent = tickets >= JACKPOT ? '¡JACKPOT!' : '¡Partidón!'
+      shell.append(stamp)
+      setTimeout(() => stamp.remove(), 1800)
+    }
+    for (let i = 0; i < (big ? 70 : 28); i++) {
       const f = document.createElement('i')
       f.className = 'fx'
       f.style.cssText = `--x:${Math.random() * 92}%;--dx:${(Math.random() - 0.5) * 160}px;--d:${0.9 + Math.random() * 0.9}s;--w:${Math.random() * 0.4}s;--c:${palette[i % 3]}`
