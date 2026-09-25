@@ -17,6 +17,7 @@ import {
   type Session,
 } from '../domain'
 import { ACHIEVEMENTS, achievements, newlyUnlocked } from '../achievements'
+import { budgetStatus, worsened, type BudgetLevel } from '../budget'
 import { eur, num } from '../format'
 import { JEWELS, PLAYERS, playerById, type Player } from '../players'
 import { prefs } from '../prefs'
@@ -170,7 +171,7 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
       ([n, c]) => `<button class="jw" data-c="${c}" style="--c:${c}" aria-label="${n}" title="${n}" aria-pressed="${c === color(u)}"></button>`,
     ).join('')}</div>
 <div class="totals"><div class="tot"><b id="tTk">${num(t.tickets)}</b><small>tickets</small></div><div class="tot"><b id="tEur">${eur(t.cents)}</b><small>gastado</small></div><div class="tot"><b id="tR">${t.ratio === null ? '–' : num(t.ratio)}</b><small>tickets/€</small></div></div>
-${hasSessions ? '<div class="sess" id="sess"></div>' : ''}
+${hasSessions ? '<div class="sess" id="sess"></div><div class="budget card" id="budget" hidden></div>' : ''}
 <div class="play card"><p class="lbl">Tickets ganados</p>${dialHTML()}
 ${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines"></div>' : ''}
 <p class="lbl">Dinero metido</p><div class="money"><output id="eurv">${eur(s.cents)}</output><button class="clr" id="clr">Poner a 0</button></div>
@@ -292,7 +293,55 @@ ${seg('metric', METRICS, s.metric)}
     checkAchievements()
   }
 
+  // Presupuesto por sesión: es personal, así que vive en este móvil.
+  const budgets = prefs.read<Record<string, number>>('tk.budget', {})
+  const spentIn = (sessionId: string): number =>
+    mine()
+      .filter((g) => g.sessionId === sessionId)
+      .reduce((sum, g) => sum + g.cents, 0)
+  const budgetLevel = (): BudgetLevel => {
+    const open = openSession()
+    const budget = open && budgets[open.id]
+    return open && budget ? budgetStatus(spentIn(open.id), budget).level : 'ok'
+  }
+  const setBudget = (sessionId: string, cents: number | null): void => {
+    if (cents === null) delete budgets[sessionId]
+    else budgets[sessionId] = cents
+    prefs.write('tk.budget', budgets)
+    renderBudget()
+  }
+
+  function renderBudget(): void {
+    const box = screen.querySelector<HTMLElement>('#budget')
+    if (!box) return
+    const open = openSession()
+    box.hidden = !open
+    if (!open) return
+    const budget = budgets[open.id]
+    if (!budget) {
+      box.className = 'budget card'
+      box.innerHTML = `<p class="lbl">¿Cuánto quieres gastar hoy?</p><div class="machines">${[500, 1000, 2000]
+        .map((c) => `<button class="chip" data-b="${c}">${eur(c)}</button>`)
+        .join('')}<form class="chip-form" id="budgetForm"><input id="budgetOther" inputmode="decimal" placeholder="Otra cantidad en €" aria-label="Otra cantidad en euros" /><button class="chip">Poner</button></form></div>`
+      box.querySelectorAll<HTMLButtonElement>('[data-b]').forEach((b) => (b.onclick = () => setBudget(open.id, Number(b.dataset.b))))
+      box.querySelector<HTMLFormElement>('#budgetForm')!.onsubmit = (e) => {
+        e.preventDefault()
+        const euros = Number(box.querySelector<HTMLInputElement>('#budgetOther')!.value.replace(',', '.'))
+        if (euros > 0) setBudget(open.id, Math.round(euros * 100))
+      }
+      return
+    }
+    const spent = spentIn(open.id)
+    const st = budgetStatus(spent, budget)
+    box.className = `budget card lvl-${st.level}`
+    box.innerHTML = `<div class="bud-head"><p class="lbl">Presupuesto de la sesión</p><button class="clr" id="budgetEdit">Cambiar</button></div>
+<div class="bud-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(st.used * 100)}"><i style="width:${Math.min(100, st.used * 100)}%"></i></div>
+<p class="bud-txt">${st.level === 'over' ? `Te has pasado <b>${eur(-st.leftCents)}</b>` : `Te quedan <b>${eur(st.leftCents)}</b>`} · llevas ${eur(spent)} de ${eur(budget)}</p>`
+    box.querySelector<HTMLButtonElement>('#budgetEdit')!.onclick = () => setBudget(open.id, null)
+  }
+
   function renderSession(): void {
+    renderBudget()
     const bar = screen.querySelector<HTMLElement>('#sess')
     if (!bar) return
     const open = openSession()
@@ -477,6 +526,7 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
         return
       }
       const before = totals(mine())
+      const budgetBefore = budgetLevel()
       const go = $<HTMLButtonElement>('#go')
       go.disabled = true
       const fields = { tickets: s.tickets, cents: s.cents, machineId: s.machineId }
@@ -494,6 +544,8 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
       s.editing = null
       s.cents = DEFAULT_CENTS
       render()
+      const budgetNow = worsened(budgetBefore, budgetLevel())
+      if (budgetNow) toast(budgetNow === 'over' ? '🛑 Te has pasado del presupuesto de hoy' : '⚠️ Ya llevas el 80 % del presupuesto de hoy')
       if (editing) {
         toast('Partida corregida')
       } else {
