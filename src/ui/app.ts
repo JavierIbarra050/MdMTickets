@@ -16,6 +16,7 @@ import {
   type RankRow,
   type Session,
 } from '../domain'
+import { ACHIEVEMENTS, achievements, newlyUnlocked } from '../achievements'
 import { eur, num } from '../format'
 import { JEWELS, PLAYERS, playerById, type Player } from '../players'
 import { prefs } from '../prefs'
@@ -182,6 +183,7 @@ ${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines">
         ? `<ul>${last.map((g) => `<li><span class="h-tk">${num(g.tickets)} <small>tickets</small></span><span class="h-eur">${eur(g.cents)}</span><span class="h-t">${ago(g.createdAt)}${g.machineId ? ` · ${escapeHTML(machineName(g.machineId))}` : ''}</span><span class="h-act">${store.update ? `<button class="edit" data-id="${g.id}" aria-label="Corregir partida">✎</button>` : ''}<button class="del" data-id="${g.id}" aria-label="Quitar partida">×</button></span></li>`).join('')}</ul>`
         : '<p class="empty">Aún no hay partidas. Apunta la primera arriba.</p>'
     }</div>
+<div class="ach card" id="ach"></div>
 <p class="swipe-hint">Desliza para ver el ranking <i>→</i></p></section>`
   }
 
@@ -287,6 +289,7 @@ ${seg('metric', METRICS, s.metric)}
     renderBoard()
     renderSession()
     bindPlay(u)
+    checkAchievements()
   }
 
   function renderSession(): void {
@@ -326,6 +329,7 @@ ${seg('metric', METRICS, s.metric)}
     const wasOpen = s.sessions.some((x) => x.id === session.id && x.endedAt === null)
     s.sessions = [...s.sessions.filter((x) => x.id !== session.id), session]
     if (session.endedAt !== null && wasOpen) showSummary(session)
+    checkAchievements()
     // Sin repintar la pantalla, para no perder lo marcado en la rueda.
     if (s.user) {
       renderSession()
@@ -574,10 +578,31 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
   }
 
   /** Actualiza totales y ranking sin repintar la pantalla, para no perder lo marcado en la rueda. */
+  let unlocked = achievements(s.games, s.sessions)
+
+  /** Pinta tus logros y avisa a todos de los recién conseguidos. */
+  function checkAchievements(): void {
+    const next = achievements(s.games, s.sessions)
+    newlyUnlocked(unlocked, next).forEach(([player, id]) => {
+      const a = ACHIEVEMENTS.find((x) => x.id === id)!
+      const p = playerById(player)
+      toast(player === s.user ? `🏆 Has conseguido «${a.name}» ${a.emoji}` : `🏆 ${p.emoji} ${p.name} ha conseguido «${a.name}» ${a.emoji}`)
+    })
+    unlocked = next
+    const box = screen.querySelector<HTMLElement>('#ach')
+    if (!box || !s.user) return
+    const mineUnlocked = unlocked.get(s.user) ?? new Set()
+    box.innerHTML = `<p class="lbl">Tus logros · ${mineUnlocked.size} de ${ACHIEVEMENTS.length}</p><ul>${ACHIEVEMENTS.map(
+      (a) =>
+        `<li class="${mineUnlocked.has(a.id) ? 'got' : ''}"><span class="ach-e" aria-hidden="true">${a.emoji}</span><b>${a.name}</b><small>${a.description}</small></li>`,
+    ).join('')}</ul>`
+  }
+
   function refreshLive(): void {
     if (!s.user || !screen.querySelector('#board')) return
     renderBoard()
     renderSession()
+    checkAchievements()
     const t = totals(mine())
     const set = (sel: string, text: string) => {
       const el = $(sel)
