@@ -194,3 +194,16 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .budget.lvl-over .bud-bar i{background:linear-gradient(90deg,#FF9F43,#FF5C5C)}
 .budget.lvl-over{border-color:rgba(255,92,92,.55)}
 .bud-txt{margin:0;font-size:13px}.bud-txt b{color:#FFF3C9}
+/* Tarjeta de apuntar compacta para que quepa entera arriba */
+.play{gap:10px}
+.play .dial{width:220px;margin:12px auto 0}
+.lbl-row{display:flex;justify-content:space-between;align-items:baseline}
+.play .money{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.play #eurv{font-size:26px}
+.play .coins{flex:none;gap:10px}
+.app .play .coin{flex:none;width:58px;max-width:none}
+.play .coin span{font-size:20px}
+.play .machines{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-18px;padding-inline:18px}
+.play .machines::-webkit-scrollbar{display:none}
+.play .machines .chip{flex:none}
+.play .chip-form{flex:0 0 calc(100% - 4px)}
