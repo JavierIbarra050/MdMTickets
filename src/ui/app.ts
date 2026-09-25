@@ -3,6 +3,7 @@ import { eur, num } from '../format'
 import { JEWELS, PLAYERS, playerById, type Player } from '../players'
 import { prefs } from '../prefs'
 import type { GameStore } from '../store'
+import { WrongGroupCodeError } from '../supabaseStore'
 import { bindDial, dialHTML } from './dial'
 
 const COINS = [50, 100, 200] as const
@@ -48,9 +49,13 @@ const ago = (t: number): string => {
   return new Date(t).toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })
 }
 
-export async function mountApp(root: HTMLElement, store: GameStore): Promise<void> {
+export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?: () => void): Promise<void> {
+  let loadFailed = false
   const s: State = {
-    games: await store.load(),
+    games: await store.load().catch(() => {
+      loadFailed = true
+      return []
+    }),
     user: prefs.read<PlayerId | null>('tk.user', null),
     jewels: prefs.read('tk.jewels', {}),
     tickets: 0,
@@ -64,6 +69,27 @@ export async function mountApp(root: HTMLElement, store: GameStore): Promise<voi
   const screen = root.querySelector<HTMLElement>('#screen')!
   const $ = <T extends HTMLElement = HTMLElement>(sel: string) => screen.querySelector<T>(sel)!
   const $$ = <T extends HTMLElement = HTMLElement>(sel: string) => [...screen.querySelectorAll<T>(sel)]
+
+  const toast = (text: string): void => {
+    const t = document.createElement('div')
+    t.className = 'toast'
+    t.setAttribute('role', 'status')
+    t.textContent = text
+    shell.append(t)
+    setTimeout(() => t.remove(), 3200)
+  }
+
+  /** Ejecuta una escritura y avisa si falla; devuelve false si no se pudo. */
+  const attempt = async (action: () => Promise<void>, failure: string): Promise<boolean> => {
+    try {
+      await action()
+      return true
+    } catch (e) {
+      if (e instanceof WrongGroupCodeError && onWrongCode) onWrongCode()
+      else toast(failure)
+      return false
+    }
+  }
 
   const color = (p: Player): string => s.jewels[p.id] ?? p.jewel
   const mine = (): Game[] => (s.user ? gamesOf(s.games, s.user) : [])
@@ -226,7 +252,8 @@ ${seg('metric', METRICS, s.metric)}
     $$('.del').forEach(
       (b) =>
         (b.onclick = async () => {
-          await store.remove(b.dataset.id!)
+          const ok = await attempt(() => store.remove(b.dataset.id!), 'No se ha podido quitar la partida. Comprueba la conexión.')
+          if (!ok) return
           s.games = s.games.filter((g) => g.id !== b.dataset.id)
           render()
         }),
@@ -241,7 +268,13 @@ ${seg('metric', METRICS, s.metric)}
         return
       }
       const before = totals(mine())
-      s.games.push(await store.add({ player: u.id, tickets: s.tickets, cents: s.cents }))
+      const go = $<HTMLButtonElement>('#go')
+      go.disabled = true
+      const ok = await attempt(async () => {
+        s.games.push(await store.add({ player: u.id, tickets: s.tickets, cents: s.cents }))
+      }, 'No se ha podido apuntar la partida. Comprueba la conexión y vuelve a probar.')
+      go.disabled = false
+      if (!ok) return
       s.cents = DEFAULT_CENTS
       render()
       celebrate()
@@ -275,4 +308,5 @@ ${seg('metric', METRICS, s.metric)}
   }
 
   render()
+  if (loadFailed) toast('No se han podido cargar las partidas. Comprueba la conexión.')
 }
