@@ -159,3 +159,15 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .sum-win p{margin:0;font-size:18px}
 .sum-best{margin:0;font-size:14px;text-align:center}
 .sum-best b{color:#FFF3C9}
+.machines{display:flex;flex-wrap:wrap;gap:8px}
+.app .chip{height:40px;padding:0 14px;border-radius:999px;background:var(--glass);border:1px solid var(--line);font-weight:700;font-size:14px;color:#F4EAD2}
+.app .chip[aria-pressed="true"]{background:var(--g);color:#1A1206;border-color:transparent}
+.app .chip.add{color:var(--gold);border-style:dashed}
+.chip-form{display:flex;gap:8px;flex:1 1 100%}
+.chip-form input{flex:1;min-width:0;height:40px;border-radius:999px;border:1px solid var(--line);background:var(--glass);color:#FFF3C9;font:600 15px Manrope,system-ui,sans-serif;padding:0 14px}
+.chip-form input:focus{outline:2px solid #E9CD86}
+.mach{margin-top:4px;display:grid;gap:8px}
+.mach ol{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.mach li{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:rgba(255,236,190,.05)}
+.mach .nm{display:grid;font-weight:800}.mach .nm small{font-weight:400;opacity:.6;font-size:12px}
+.mach .val{font-family:Unbounded,system-ui,sans-serif;font-size:13px;color:#FFF3C9}
