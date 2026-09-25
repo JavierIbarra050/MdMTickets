@@ -170,6 +170,7 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
 <div class="jewels" id="jewels" hidden>${JEWELS.map(
       ([n, c]) => `<button class="jw" data-c="${c}" style="--c:${c}" aria-label="${n}" title="${n}" aria-pressed="${c === color(u)}"></button>`,
     ).join('')}</div>
+<div class="totals"><div class="tot"><b id="tTk">${num(t.tickets)}</b><small>tickets</small></div><div class="tot"><b id="tEur">${eur(t.cents)}</b><small>gastado</small></div><div class="tot"><b id="tR">${t.ratio === null ? '–' : num(t.ratio)}</b><small>tickets/€</small></div></div>
 <div class="play card"><p class="lbl">Tickets ganados</p>${dialHTML()}
 ${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines"></div>' : ''}
 <div class="lbl-row"><p class="lbl">Dinero metido</p><button class="clr" id="clr">Poner a 0</button></div>
@@ -177,7 +178,6 @@ ${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines">
       (c) => `<button class="coin" data-c="${c}" aria-label="Sumar ${eur(c)}"><span>${c < 100 ? c : c / 100}</span><small>${c < 100 ? 'cént.' : c > 100 ? 'euros' : 'euro'}</small></button>`,
     ).join('')}</div></div>
 <button class="go" id="go">Apuntar partida</button><button class="clr cancel-edit" id="cancelEdit" hidden>Cancelar corrección</button></div>
-<div class="totals"><div class="tot"><b id="tTk">${num(t.tickets)}</b><small>tickets</small></div><div class="tot"><b id="tEur">${eur(t.cents)}</b><small>gastado</small></div><div class="tot"><b id="tR">${t.ratio === null ? '–' : num(t.ratio)}</b><small>tickets/€</small></div></div>
 ${hasSessions ? '<div class="sess" id="sess"></div><div class="budget card" id="budget" hidden></div>' : ''}
 <div class="hist card"><p class="lbl">Tus últimas partidas</p>${
       last.length

@@ -207,3 +207,9 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .play .machines::-webkit-scrollbar{display:none}
 .play .machines .chip{flex:none}
 .play .chip-form{flex:0 0 calc(100% - 4px)}
+/* Pantalla principal compacta: nombre, totales y tarjeta a la vista en un iPhone 13 */
+.pager>.page:first-child{padding-top:calc(8px + env(safe-area-inset-top,0px));gap:10px}
+.pager>.page:first-child .me{padding:6px 10px}
+.pager>.page:first-child .me .av{width:40px;height:40px;font-size:22px}
+.pager>.page:first-child .tot{padding:8px 6px}
+.pager>.page:first-child .play{padding:14px 16px}
