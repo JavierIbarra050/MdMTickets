@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Game, PlayerId } from './domain'
+import type { Game, PlayerId, Session } from './domain'
 import type { GameChange, GameStore, NewGame } from './store'
 
 interface GameRow {
@@ -8,7 +8,20 @@ interface GameRow {
   tickets: number
   cents: number
   created_at: string
+  session_id?: string | null
 }
+
+interface SessionRow {
+  id: string
+  started_at: string
+  ended_at: string | null
+}
+
+export const rowToSession = (row: SessionRow): Session => ({
+  id: row.id,
+  startedAt: Date.parse(row.started_at),
+  endedAt: row.ended_at === null ? null : Date.parse(row.ended_at),
+})
 
 /** El código de grupo ya no es válido (por ejemplo, porque se ha cambiado). */
 export class WrongGroupCodeError extends Error {}
@@ -19,6 +32,7 @@ export const rowToGame = (row: GameRow): Game => ({
   tickets: row.tickets,
   cents: row.cents,
   createdAt: Date.parse(row.created_at),
+  sessionId: row.session_id ?? null,
 })
 
 const fail = (error: { code?: string; message: string }): never => {
@@ -60,8 +74,30 @@ export class SupabaseGameStore implements GameStore {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'games' }, (p) =>
         onChange({ type: 'removed', id: (p.old as { id: string }).id }),
       )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, (p) => {
+        if (p.eventType !== 'DELETE') onChange({ type: 'session', session: rowToSession(p.new as SessionRow) })
+      })
       .subscribe()
     return () => void this.client.removeChannel(channel)
+  }
+
+  async loadSessions(): Promise<Session[]> {
+    const { data, error } = await this.client.from('sessions').select('*').order('started_at')
+    if (error) fail(error)
+    return (data as SessionRow[]).map(rowToSession)
+  }
+
+  async startSession(): Promise<Session> {
+    const { data, error } = await this.client.rpc('start_session', { code: this.code })
+    if (error) fail(error)
+    return rowToSession(data as SessionRow)
+  }
+
+  async endSession(): Promise<Session | null> {
+    const { data, error } = await this.client.rpc('end_session', { code: this.code })
+    if (error) fail(error)
+    // Si no había sesión abierta, Postgres devuelve una fila con todo a null.
+    return (data as SessionRow | null)?.id ? rowToSession(data as SessionRow) : null
   }
 
   async remove(id: string): Promise<void> {

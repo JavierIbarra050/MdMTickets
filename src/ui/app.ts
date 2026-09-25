@@ -1,4 +1,17 @@
-import { chase, gamesOf, ranking, totals, type Game, type Metric, type Period, type PlayerId, type RankRow } from '../domain'
+import {
+  chase,
+  currentSession,
+  gamesOf,
+  ranking,
+  summarize,
+  totals,
+  type Game,
+  type Metric,
+  type Period,
+  type PlayerId,
+  type RankRow,
+  type Session,
+} from '../domain'
 import { eur, num } from '../format'
 import { JEWELS, PLAYERS, playerById, type Player } from '../players'
 import { prefs } from '../prefs'
@@ -11,6 +24,7 @@ const DEFAULT_CENTS = 100
 
 interface State {
   games: Game[]
+  sessions: Session[]
   user: PlayerId | null
   jewels: Partial<Record<PlayerId, string>>
   tickets: number
@@ -26,9 +40,12 @@ const METRICS: Array<[Metric, string]> = [
   ['ratio', 'Tickets/€'],
 ]
 const PERIODS: Array<[Period, string]> = [
+  ['session', 'Sesión'],
   ['today', 'Hoy'],
   ['all', 'Siempre'],
 ]
+
+const clock = (t: number): string => new Date(t).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })
 const UNIT: Record<Metric, string> = { tickets: ' tickets', cents: '', ratio: ' tk/€' }
 
 const fmtValue = (metric: Metric, v: number | null): string =>
@@ -56,6 +73,7 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
       loadFailed = true
       return []
     }),
+    sessions: (await store.loadSessions?.().catch(() => [])) ?? [],
     user: prefs.read<PlayerId | null>('tk.user', null),
     jewels: prefs.read('tk.jewels', {}),
     tickets: 0,
@@ -64,6 +82,11 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
     period: 'today',
     metric: 'tickets',
   }
+  const hasSessions = typeof store.startSession === 'function'
+  const openSession = (): Session | null => s.sessions.find((x) => x.endedAt === null) ?? null
+  if (openSession()) s.period = 'session'
+  const summariesShown = new Set<string>()
+
   root.innerHTML = '<div class="app" id="shell"><div class="bgfx"><span></span></div><div id="screen"></div></div>'
   const shell = root.querySelector<HTMLElement>('#shell')!
   const screen = root.querySelector<HTMLElement>('#screen')!
@@ -117,6 +140,7 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
       ([n, c]) => `<button class="jw" data-c="${c}" style="--c:${c}" aria-label="${n}" title="${n}" aria-pressed="${c === color(u)}"></button>`,
     ).join('')}</div>
 <div class="totals"><div class="tot"><b id="tTk">${num(t.tickets)}</b><small>tickets</small></div><div class="tot"><b id="tEur">${eur(t.cents)}</b><small>gastado</small></div><div class="tot"><b id="tR">${t.ratio === null ? '–' : num(t.ratio)}</b><small>tickets/€</small></div></div>
+${hasSessions ? '<div class="sess" id="sess"></div>' : ''}
 <div class="play card"><p class="lbl">Tickets ganados</p>${dialHTML()}
 <p class="lbl">Dinero metido</p><div class="money"><output id="eurv">${eur(s.cents)}</output><button class="clr" id="clr">Poner a 0</button></div>
 <div class="coins">${COINS.map(
@@ -133,13 +157,14 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
 
   const rankHTML = (): string => `
 <section class="page"><p class="eyebrow">Clasificación</p>
-<div class="rk-head"><h2>Ranking</h2>${seg('period', PERIODS, s.period)}</div>
+<div class="rk-head"><h2>Ranking</h2></div>
+${seg('period', hasSessions ? PERIODS : PERIODS.slice(1), s.period)}
 ${seg('metric', METRICS, s.metric)}
 <div id="board"></div></section>`
 
   function renderBoard(): void {
     const m = s.metric
-    const rows = ranking(s.games, PLAYERS.map((p) => p.id), m, s.period)
+    const rows = ranking(s.games, PLAYERS.map((p) => p.id), m, s.period, Date.now(), currentSession(s.sessions)?.id ?? null)
     const top = rows[0].value || 1
     const pod = (r: RankRow, i: number): string => {
       const p = playerById(r.player)
@@ -174,7 +199,78 @@ ${seg('metric', METRICS, s.metric)}
     screen.innerHTML = `<div class="pager" id="pager">${playHTML(u)}${rankHTML()}</div><nav class="dots"><button data-p="0" aria-label="Apuntar partida"></button><button data-p="1" aria-label="Ranking"></button></nav>`
     bindPager()
     renderBoard()
+    renderSession()
     bindPlay(u)
+  }
+
+  function renderSession(): void {
+    const bar = screen.querySelector<HTMLElement>('#sess')
+    if (!bar) return
+    const open = openSession()
+    const played = open ? s.games.filter((g) => g.sessionId === open.id).length : 0
+    bar.classList.toggle('on', open !== null)
+    bar.innerHTML = open
+      ? `<span class="pulse" aria-hidden="true"></span><div class="sess-txt"><b>Sesión en marcha</b><small>Desde las ${clock(open.startedAt)} · ${played} ${played === 1 ? 'partida' : 'partidas'}</small></div><button class="swap" id="sessBtn">Terminar</button>`
+      : '<div class="sess-txt"><b>Sin sesión abierta</b><small>Empieza una para agrupar las partidas de la tarde</small></div><button class="swap" id="sessBtn">Empezar</button>'
+    const btn = $<HTMLButtonElement>('#sessBtn')
+    let armed = false
+    btn.onclick = async () => {
+      if (!open) {
+        await attempt(async () => upsertSession(await store.startSession!()), 'No se ha podido empezar la sesión. Comprueba la conexión.')
+        return
+      }
+      // Terminar pide un segundo toque para no cerrarla sin querer.
+      if (!armed) {
+        armed = true
+        btn.textContent = '¿Seguro?'
+        setTimeout(() => {
+          armed = false
+          if (btn.isConnected) btn.textContent = 'Terminar'
+        }, 3000)
+        return
+      }
+      await attempt(async () => {
+        const ended = await store.endSession!()
+        if (ended) upsertSession(ended)
+      }, 'No se ha podido terminar la sesión. Comprueba la conexión.')
+    }
+  }
+
+  function upsertSession(session: Session): void {
+    const wasOpen = s.sessions.some((x) => x.id === session.id && x.endedAt === null)
+    s.sessions = [...s.sessions.filter((x) => x.id !== session.id), session]
+    if (session.endedAt !== null && wasOpen) showSummary(session)
+    // Sin repintar la pantalla, para no perder lo marcado en la rueda.
+    if (s.user) {
+      renderSession()
+      renderBoard()
+    }
+  }
+
+  function showSummary(session: Session): void {
+    if (summariesShown.has(session.id)) return
+    summariesShown.add(session.id)
+    const sum = summarize(s.games, session.id, PLAYERS.map((p) => p.id))
+    const winner = sum.winner ? playerById(sum.winner) : null
+    const best = sum.best ? playerById(sum.best.player) : null
+    const minutes = Math.round(((session.endedAt ?? Date.now()) - session.startedAt) / 60000)
+    const box = document.createElement('div')
+    box.className = 'sum'
+    box.innerHTML = `<div class="sum-card card" role="dialog" aria-modal="true" aria-labelledby="sumT">
+<p class="eyebrow">Sesión terminada · ${minutes < 60 ? `${minutes} min` : `${Math.floor(minutes / 60)} h ${minutes % 60} min`}</p>
+<h2 id="sumT">Resumen</h2>
+${
+  winner
+    ? `<div class="sum-win" style="--c:${color(winner)}">${CROWN}<span class="av">${winner.emoji}</span><p><b>${winner.name}</b> gana la tarde</p></div>`
+    : '<p class="empty">Nadie apuntó partidas en esta sesión.</p>'
+}
+<div class="totals"><div class="tot"><b>${num(sum.games)}</b><small>partidas</small></div><div class="tot"><b>${num(sum.tickets)}</b><small>tickets</small></div><div class="tot"><b>${eur(sum.cents)}</b><small>gastado</small></div></div>
+${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.name} con <b>${num(sum.best.tickets)} tickets</b> por ${eur(sum.best.cents)}</p>` : ''}
+<button class="go" id="sumClose">Cerrar</button></div>`
+    shell.append(box)
+    const close = box.querySelector<HTMLButtonElement>('#sumClose')!
+    close.focus()
+    close.onclick = () => box.remove()
   }
 
   function bindPager(): void {
@@ -308,6 +404,7 @@ ${seg('metric', METRICS, s.metric)}
   }
 
   store.subscribe?.((change) => {
+    if (change.type === 'session') return upsertSession(change.session)
     if (change.type === 'added') {
       if (s.games.some((g) => g.id === change.game.id)) return
       s.games.push(change.game)
@@ -322,6 +419,7 @@ ${seg('metric', METRICS, s.metric)}
   function refreshLive(): void {
     if (!s.user || !screen.querySelector('#board')) return
     renderBoard()
+    renderSession()
     const t = totals(mine())
     const set = (sel: string, text: string) => {
       const el = $(sel)

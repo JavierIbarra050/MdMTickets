@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chase, gamesOf, ranking, totals, type Game } from './domain'
+import { chase, currentSession, gamesOf, ranking, summarize, totals, type Game } from './domain'
 
 const game = (tickets: number, cents: number, player: Game['player'] = 'jon'): Game => ({
   id: `${player}-${tickets}-${cents}`,
@@ -60,5 +60,34 @@ describe('chase', () => {
 
   it('knows when you have no value yet', () => {
     expect(chase([row('jon', 5), row('alej', null)], 'alej')).toEqual({ kind: 'out' })
+  })
+})
+
+describe('sessions', () => {
+  const inSession = (g: Game, sessionId: string | null): Game => ({ ...g, sessionId })
+
+  it('ranks only the games of the chosen session', () => {
+    const games = [inSession(game(90, 100, 'alej'), 'old'), inSession(game(20, 100, 'jon'), 'now')]
+    const rows = ranking(games, ['alej', 'jon'], 'tickets', 'session', 0, 'now')
+    expect(rows[0]).toMatchObject({ player: 'jon', value: 20 })
+  })
+
+  it('prefers the open session over the latest closed one', () => {
+    const open = { id: 'a', startedAt: 1, endedAt: null }
+    expect(currentSession([{ id: 'b', startedAt: 5, endedAt: 6 }, open])).toBe(open)
+  })
+
+  it('falls back to the latest closed session', () => {
+    expect(currentSession([{ id: 'x', startedAt: 1, endedAt: 2 }, { id: 'y', startedAt: 3, endedAt: 4 }])?.id).toBe('y')
+  })
+
+  it('summarizes winner, totals and best game of a session', () => {
+    const best = inSession(game(300, 200, 'jon'), 's')
+    const games = [inSession(game(100, 100, 'alej'), 's'), inSession(game(150, 100, 'jon'), 's'), best, inSession(game(999, 100, 'alej'), 'other')]
+    expect(summarize(games, 's', ['alej', 'jon'])).toEqual({ games: 3, tickets: 550, cents: 400, winner: 'jon', best })
+  })
+
+  it('has no winner when nobody played', () => {
+    expect(summarize([], 's', ['alej']).winner).toBeNull()
   })
 })

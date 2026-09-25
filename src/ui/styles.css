@@ -146,3 +146,15 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .gate input:focus{outline:3px solid #E9CD86;outline-offset:2px}
 .gate-error{margin:0;min-height:1.4em;color:#FFB4A8;font-size:14px}
 .app .go:disabled{opacity:.6}
+.sess{display:flex;align-items:center;gap:12px;padding:10px 12px 10px 16px;border-radius:22px;background:var(--glass);border:1px solid var(--line)}
+.sess.on{border-color:color-mix(in oklab,var(--me) 60%,#E9CD86)}
+.sess-txt{flex:1;display:grid}.sess-txt small{opacity:.7;font-size:12px}
+.pulse{width:10px;height:10px;border-radius:50%;background:#FF5C5C;box-shadow:0 0 0 0 rgba(255,92,92,.6);animation:pulse 1.6s infinite}
+@keyframes pulse{70%{box-shadow:0 0 0 10px rgba(255,92,92,0)}}
+.sum{position:absolute;inset:0;z-index:30;display:grid;place-items:center;padding:20px;background:rgba(5,4,2,.7);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);animation:in .3s both}
+.sum-card{width:100%;display:grid;gap:14px;background:rgba(24,18,10,.92)!important}
+.sum-win{display:grid;justify-items:center;gap:6px;text-align:center}
+.sum-win .av{width:72px;height:72px;font-size:38px}
+.sum-win p{margin:0;font-size:18px}
+.sum-best{margin:0;font-size:14px;text-align:center}
+.sum-best b{color:#FFF3C9}
