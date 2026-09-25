@@ -12,9 +12,47 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/svg+xml" href="/icons/icon.svg" />
     <link rel="apple-touch-icon" href="/icons/icon-180.png" />
+    <style>
+      /* Pantalla de carga: va en línea para salir antes de que llegue el resto. */
+      html,body{margin:0;background:#0A0806}
+      #splash{position:fixed;inset:0;z-index:100;display:grid;place-content:center;justify-items:center;gap:22px;background:radial-gradient(60% 45% at 50% 40%,#3A2610 0%,#0A0806 70%);transition:opacity .5s ease,visibility .5s}
+      #splash.out{opacity:0;visibility:hidden}
+      #splash::before{content:"";position:absolute;width:320px;height:320px;left:50%;top:40%;margin:-160px 0 0 -160px;border-radius:50%;background:#B8862F;filter:blur(90px);opacity:.35;animation:glow 3s ease-in-out infinite alternate}
+      #splash svg{width:180px;height:180px;position:relative;filter:drop-shadow(0 18px 30px rgba(0,0,0,.6))}
+      #splash .turn{transform-origin:256px 268px;animation:combo 2.6s cubic-bezier(.5,0,.3,1) infinite}
+      #splash .name{position:relative;font:800 26px Unbounded,system-ui,sans-serif;letter-spacing:.02em;background:linear-gradient(105deg,#8C6B2E,#E9CD86 28%,#FFF3C9 42%,#C69C47 60%,#F4DB98 80%,#8C6B2E);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent;animation:shine 2.4s linear infinite}
+      #splash .sp-dots{position:relative;display:flex;gap:6px}
+      #splash .sp-dots i{width:6px;height:6px;border-radius:50%;background:#D6B062;opacity:.3;animation:dot 1.2s infinite}
+      #splash .sp-dots i:nth-child(2){animation-delay:.2s}#splash .sp-dots i:nth-child(3){animation-delay:.4s}
+      @keyframes combo{0%{transform:rotate(0)}30%{transform:rotate(216deg)}55%{transform:rotate(72deg)}80%,100%{transform:rotate(360deg)}}
+      @keyframes glow{to{transform:scale(1.2);opacity:.5}}
+      @keyframes shine{to{background-position:200% 0}}
+      @keyframes dot{40%{opacity:1}}
+      @media (prefers-reduced-motion:reduce){#splash *,#splash::before{animation:none!important}}
+    </style>
     <title>Ticketeros</title>
   </head>
   <body>
+    <div id="splash" role="status" aria-label="Cargando Ticketeros">
+      <svg viewBox="80 60 352 390" aria-hidden="true">
+        <defs>
+          <linearGradient id="sg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FFF3C9"/><stop offset=".35" stop-color="#E9CD86"/><stop offset=".6" stop-color="#B8862F"/><stop offset="1" stop-color="#F4DB98"/></linearGradient>
+          <radialGradient id="sh" cx="40%" cy="30%" r="70%"><stop offset="0" stop-color="#2A2012"/><stop offset="1" stop-color="#0A0806"/></radialGradient>
+        </defs>
+        <g class="turn">
+          <circle cx="256" cy="268" r="170" fill="#6E5122"/>
+          <circle cx="256" cy="268" r="164" fill="none" stroke="#F4DB98" stroke-width="14" stroke-dasharray="7 7"/>
+          <circle cx="256" cy="268" r="150" fill="url(#sg)"/>
+          <circle cx="256" cy="268" r="140" fill="none" stroke="#3A2608" stroke-width="12" stroke-dasharray="1.5 7.3" opacity=".8"/>
+          <circle cx="256" cy="268" r="136" fill="none" stroke="#3A2608" stroke-width="20" stroke-dasharray="3 82.45" opacity=".9"/>
+        </g>
+        <circle cx="256" cy="268" r="74" fill="url(#sh)" stroke="url(#sg)" stroke-width="8"/>
+        <circle cx="256" cy="268" r="22" fill="url(#sg)"/>
+        <path d="M232 70h48l-24 40z" fill="#C0213F" stroke="#FFF3C9" stroke-width="4" stroke-linejoin="round"/>
+      </svg>
+      <p class="name">Ticketeros</p>
+      <div class="sp-dots" aria-hidden="true"><i></i><i></i><i></i></div>
+    </div>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

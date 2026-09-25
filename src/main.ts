@@ -7,12 +7,22 @@ import { askGroupCode } from './ui/gate'
 import './ui/styles.css'
 
 const root = document.querySelector<HTMLElement>('#app')!
+
+/** Quita la pantalla de carga, dejándola al menos un momento para que no parpadee. */
+async function hideSplash(): Promise<void> {
+  const splash = document.querySelector<HTMLElement>('#splash')
+  if (!splash) return
+  const MIN_VISIBLE_MS = 900
+  await new Promise((r) => setTimeout(r, Math.max(0, MIN_VISIBLE_MS - performance.now())))
+  splash.classList.add('out')
+  setTimeout(() => splash.remove(), 600)
+}
 const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
 const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
 async function start(): Promise<void> {
   // Sin Supabase configurado (desarrollo local), las partidas se quedan en el navegador.
-  if (!url || !key) return mountApp(root, new LocalGameStore())
+  if (!url || !key) return mountApp(root, new LocalGameStore()).then(hideSplash)
 
   const client = createClient(url, key)
   const onWrongCode = () => {
@@ -22,9 +32,11 @@ async function start(): Promise<void> {
   const saved = prefs.read<string | null>('tk.code', null)
   // Sin conexión al arrancar damos el código guardado por bueno: fallará al apuntar si no lo es.
   const stillValid = saved !== null && (await checkGroupCode(client, saved).catch(() => true))
+  if (!stillValid) void hideSplash()
   const code = stillValid ? saved : await askGroupCode(root, (c) => checkGroupCode(client, c))
   prefs.write('tk.code', code)
-  return mountApp(root, new SupabaseGameStore(client, code), onWrongCode)
+  await mountApp(root, new SupabaseGameStore(client, code), onWrongCode)
+  return hideSplash()
 }
 
 void start()
