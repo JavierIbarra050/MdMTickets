@@ -17,11 +17,8 @@ html,body{margin:0;height:100%;background:#0A0806;color:#F4EAD2;font-family:Manr
 /* páginas deslizables */
 .pager{position:absolute;inset:0;display:flex;overflow-x:auto;overflow-y:hidden;scroll-snap-type:x mandatory;scrollbar-width:none;overscroll-behavior-x:contain}
 .pager::-webkit-scrollbar{display:none}
-.page{flex:0 0 100%;overflow-y:auto;overflow-x:hidden;scroll-snap-align:start;padding:calc(22px + env(safe-area-inset-top,0px)) 18px calc(84px + env(safe-area-inset-bottom,0px));scrollbar-width:none;display:grid;gap:14px;align-content:start}
+.page{flex:0 0 100%;overflow-y:auto;overflow-x:hidden;scroll-snap-align:start;padding:calc(22px + env(safe-area-inset-top,0px)) 18px calc(24px + env(safe-area-inset-bottom,0px));scrollbar-width:none;display:grid;gap:14px;align-content:start}
 .app button{font:inherit;color:inherit;cursor:pointer;border:0;background:none}
-.dots{position:absolute;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);display:flex;gap:8px;padding:10px 12px;border-radius:999px;background:rgba(20,15,8,.55);-webkit-backdrop-filter:blur(16px);backdrop-filter:blur(16px);border:1px solid var(--line);z-index:5}
-.app .dots button{width:8px;height:8px;padding:0;border-radius:99px;background:rgba(233,205,134,.4);transition:width .3s,background .3s}
-.app .dots button.on{width:28px;background:#E9CD86}
 .swipe-hint{text-align:center;font-size:12px;color:var(--gold);margin:0}
 .swipe-hint i{display:inline-block;font-style:normal;animation:nudge 1.4s ease-in-out infinite}
 @keyframes nudge{50%{transform:translateX(6px)}}

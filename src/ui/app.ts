@@ -170,7 +170,6 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
 <div class="jewels" id="jewels" hidden>${JEWELS.map(
       ([n, c]) => `<button class="jw" data-c="${c}" style="--c:${c}" aria-label="${n}" title="${n}" aria-pressed="${c === color(u)}"></button>`,
     ).join('')}</div>
-<div class="totals"><div class="tot"><b id="tTk">${num(t.tickets)}</b><small>tickets</small></div><div class="tot"><b id="tEur">${eur(t.cents)}</b><small>gastado</small></div><div class="tot"><b id="tR">${t.ratio === null ? '–' : num(t.ratio)}</b><small>tickets/€</small></div></div>
 <div class="play card"><p class="lbl">Tickets ganados</p>${dialHTML()}
 ${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines"></div>' : ''}
 <div class="lbl-row"><p class="lbl">Dinero metido</p><button class="clr" id="clr">Poner a 0</button></div>
@@ -178,6 +177,7 @@ ${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines">
       (c) => `<button class="coin" data-c="${c}" aria-label="Sumar ${eur(c)}"><span>${c < 100 ? c : c / 100}</span><small>${c < 100 ? 'cént.' : c > 100 ? 'euros' : 'euro'}</small></button>`,
     ).join('')}</div></div>
 <button class="go" id="go">Apuntar partida</button><button class="clr cancel-edit" id="cancelEdit" hidden>Cancelar corrección</button></div>
+<div class="totals"><div class="tot"><b id="tTk">${num(t.tickets)}</b><small>tickets</small></div><div class="tot"><b id="tEur">${eur(t.cents)}</b><small>gastado</small></div><div class="tot"><b id="tR">${t.ratio === null ? '–' : num(t.ratio)}</b><small>tickets/€</small></div></div>
 ${hasSessions ? '<div class="sess" id="sess"></div><div class="budget card" id="budget" hidden></div>' : ''}
 <div class="hist card"><p class="lbl">Tus últimas partidas</p>${
       last.length
@@ -285,7 +285,7 @@ ${seg('metric', METRICS, s.metric)}
       $$('.person').forEach((b) => (b.onclick = () => choose(b.dataset.id as PlayerId)))
       return
     }
-    screen.innerHTML = `<div class="pager" id="pager">${playHTML(u)}${rankHTML()}</div><nav class="dots"><button data-p="0" aria-label="Apuntar partida"></button><button data-p="1" aria-label="Ranking"></button></nav>`
+    screen.innerHTML = `<div class="pager" id="pager">${playHTML(u)}${rankHTML()}</div>`
     bindPager()
     renderBoard()
     renderSession()
@@ -414,18 +414,13 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
 
   function bindPager(): void {
     const pager = $('#pager')
-    const dots = $$('.dots button')
-    const mark = () => dots.forEach((d, i) => d.classList.toggle('on', i === s.page))
     pager.scrollLeft = s.page * pager.clientWidth
-    mark()
     pager.onscroll = () => {
       const p = Math.round(pager.scrollLeft / pager.clientWidth)
       if (p === s.page) return
       s.page = p
-      mark()
       if (p === 1) renderBoard()
     }
-    dots.forEach((d) => (d.onclick = () => pager.scrollTo({ left: Number(d.dataset.p) * pager.clientWidth, behavior: 'smooth' })))
     $$('.seg').forEach((sg) => {
       const buttons = [...sg.querySelectorAll<HTMLButtonElement>('button')]
       buttons.forEach(
