@@ -15,8 +15,8 @@ export const dialHTML = (): string => `
 </div>
 <p class="dial-hint">Gira la rueda · cada vuelta son 100</p>`
 
-/** Conecta la rueda ya pintada. `onChange` recibe los tickets marcados. */
-export function bindDial(dial: HTMLElement, onChange: (tickets: number) => void): void {
+/** Conecta la rueda ya pintada. `onChange` recibe los tickets marcados; `set` la coloca sin sonar. */
+export function bindDial(dial: HTMLElement, onChange: (tickets: number) => void): { set(tickets: number): void } {
   const ring = dial.querySelector<HTMLElement>('#ring')!
   let turned = 0
   let lastAngle: number | null = null
@@ -50,5 +50,14 @@ export function bindDial(dial: HTMLElement, onChange: (tickets: number) => void)
   }
   dial.onpointerup = dial.onpointercancel = () => {
     lastAngle = null
+  }
+
+  return {
+    set(value) {
+      tickets = value
+      turned = value * DEG_PER_TICKET
+      ring.style.transform = `rotate(${turned}deg)`
+      onChange(value)
+    },
   }
 }

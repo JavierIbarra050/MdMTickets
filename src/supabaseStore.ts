@@ -79,6 +79,9 @@ export class SupabaseGameStore implements GameStore {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'games' }, (p) =>
         onChange({ type: 'added', game: rowToGame(p.new as GameRow) }),
       )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games' }, (p) =>
+        onChange({ type: 'updated', game: rowToGame(p.new as GameRow) }),
+      )
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'games' }, (p) =>
         onChange({ type: 'removed', id: (p.old as { id: string }).id }),
       )
@@ -90,6 +93,18 @@ export class SupabaseGameStore implements GameStore {
       })
       .subscribe()
     return () => void this.client.removeChannel(channel)
+  }
+
+  async update(id: string, changes: Omit<NewGame, 'player'>): Promise<Game> {
+    const { data, error } = await this.client.rpc('update_game', {
+      code: this.code,
+      game_id: id,
+      tickets: changes.tickets,
+      cents: changes.cents,
+      machine_id: changes.machineId ?? null,
+    })
+    if (error) fail(error)
+    return rowToGame(data as GameRow)
   }
 
   async loadMachines(): Promise<Machine[]> {

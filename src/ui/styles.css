@@ -171,3 +171,11 @@ h2,.tot b,#tkv,#eurv,.ped span{background:var(--g);background-size:200% 100%;-we
 .mach li{display:grid;grid-template-columns:24px 1fr auto;align-items:center;gap:10px;padding:8px 10px;border-radius:14px;background:rgba(255,236,190,.05)}
 .mach .nm{display:grid;font-weight:800}.mach .nm small{font-weight:400;opacity:.6;font-size:12px}
 .mach .val{font-family:Unbounded,system-ui,sans-serif;font-size:13px;color:#FFF3C9}
+.toast{display:flex;align-items:center;gap:12px;justify-content:space-between}
+.app .toast button{pointer-events:auto;flex:none;height:34px;padding:0 14px;border-radius:999px;background:var(--g);color:#1A1206;font-weight:800;font-size:13px}
+.hist li{grid-template-columns:1fr auto auto}
+.h-act{grid-column:3;grid-row:1/3;display:flex;gap:6px}
+.app .edit{width:34px;height:34px;border-radius:50%;background:rgba(127,127,127,.2);font-size:15px;color:var(--gold)}
+.app .h-act .del{grid-column:auto;grid-row:auto}
+.play.editing{border-color:#E9CD86;box-shadow:0 0 0 2px rgba(233,205,134,.35)}
+.cancel-edit{justify-self:center}

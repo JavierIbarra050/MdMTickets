@@ -30,6 +30,8 @@ interface State {
   games: Game[]
   sessions: Session[]
   machines: Machine[]
+  /** Partida que se está corrigiendo, si la hay. */
+  editing: string | null
   /** Máquina elegida para la próxima partida. */
   machineId: string | null
   user: PlayerId | null
@@ -86,6 +88,7 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
     sessions: (await store.loadSessions?.().catch(() => [])) ?? [],
     machines: (await store.loadMachines?.().catch(() => [])) ?? [],
     machineId: null,
+    editing: null,
     user: prefs.read<PlayerId | null>('tk.user', null),
     jewels: prefs.read('tk.jewels', {}),
     tickets: 0,
@@ -111,12 +114,21 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
   toasts.className = 'toasts'
   toasts.setAttribute('role', 'status')
   shell.append(toasts)
-  const toast = (text: string): void => {
+  const toast = (text: string, action?: { label: string; run: () => void }): void => {
     const t = document.createElement('div')
     t.className = 'toast'
     t.textContent = text
+    if (action) {
+      const b = document.createElement('button')
+      b.textContent = action.label
+      b.onclick = () => {
+        t.remove()
+        action.run()
+      }
+      t.append(b)
+    }
     toasts.append(t)
-    setTimeout(() => t.remove(), 3800)
+    setTimeout(() => t.remove(), action ? 6000 : 3800)
   }
 
   /** Ejecuta una escritura y avisa si falla; devuelve false si no se pudo. */
@@ -164,10 +176,10 @@ ${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines">
 <div class="coins">${COINS.map(
       (c) => `<button class="coin" data-c="${c}" aria-label="Sumar ${eur(c)}"><span>${c < 100 ? c : c / 100}</span><small>${c < 100 ? 'cént.' : c > 100 ? 'euros' : 'euro'}</small></button>`,
     ).join('')}</div>
-<button class="go" id="go">Apuntar partida</button></div>
+<button class="go" id="go">Apuntar partida</button><button class="clr cancel-edit" id="cancelEdit" hidden>Cancelar corrección</button></div>
 <div class="hist card"><p class="lbl">Tus últimas partidas</p>${
       last.length
-        ? `<ul>${last.map((g) => `<li><span class="h-tk">${num(g.tickets)} <small>tickets</small></span><span class="h-eur">${eur(g.cents)}</span><span class="h-t">${ago(g.createdAt)}</span><button class="del" data-id="${g.id}" aria-label="Quitar partida">×</button></li>`).join('')}</ul>`
+        ? `<ul>${last.map((g) => `<li><span class="h-tk">${num(g.tickets)} <small>tickets</small></span><span class="h-eur">${eur(g.cents)}</span><span class="h-t">${ago(g.createdAt)}${g.machineId ? ` · ${escapeHTML(machineName(g.machineId))}` : ''}</span><span class="h-act">${store.update ? `<button class="edit" data-id="${g.id}" aria-label="Corregir partida">✎</button>` : ''}<button class="del" data-id="${g.id}" aria-label="Quitar partida">×</button></span></li>`).join('')}</ul>`
         : '<p class="empty">Aún no hay partidas. Apunta la primera arriba.</p>'
     }</div>
 <p class="swipe-hint">Desliza para ver el ranking <i>→</i></p></section>`
@@ -406,7 +418,7 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
     )
 
     const tkv = $('#tkv')
-    bindDial($('#dial'), (tickets) => {
+    const dial = bindDial($('#dial'), (tickets) => {
       s.tickets = tickets
       tkv.textContent = num(tickets)
       bump(tkv)
@@ -420,6 +432,27 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
     }
     $$('.coin').forEach((c) => (c.onclick = () => setCents(s.cents + Number(c.dataset.c))))
     $('#clr').onclick = () => setCents(0)
+
+    $$('.edit').forEach(
+      (b) =>
+        (b.onclick = () => {
+          const g = s.games.find((x) => x.id === b.dataset.id)
+          if (!g) return
+          s.editing = g.id
+          dial.set(g.tickets)
+          setCents(g.cents)
+          s.machineId = g.machineId ?? null
+          renderMachines()
+          $('#go').textContent = 'Guardar cambios'
+          $('#cancelEdit').hidden = false
+          $('.play').classList.add('editing')
+          $('.play').scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }),
+    )
+    $('#cancelEdit').onclick = () => {
+      s.editing = null
+      render()
+    }
 
     $$('.del').forEach(
       (b) =>
@@ -442,19 +475,44 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
       const before = totals(mine())
       const go = $<HTMLButtonElement>('#go')
       go.disabled = true
-      const ok = await attempt(async () => {
-        s.games.push(await store.add({ player: u.id, tickets: s.tickets, cents: s.cents, machineId: s.machineId }))
-      }, 'No se ha podido apuntar la partida. Comprueba la conexión y vuelve a probar.')
+      const fields = { tickets: s.tickets, cents: s.cents, machineId: s.machineId }
+      const editing = s.editing
+      let saved: Game | null = null
+      const ok = await attempt(
+        async () => {
+          saved = editing ? await store.update!(editing, fields) : await store.add({ player: u.id, ...fields })
+        },
+        editing ? 'No se ha podido corregir la partida. Comprueba la conexión.' : 'No se ha podido apuntar la partida. Comprueba la conexión y vuelve a probar.',
+      )
       go.disabled = false
-      if (!ok) return
+      if (!ok || !saved) return
+      upsertGame(saved)
+      s.editing = null
       s.cents = DEFAULT_CENTS
       render()
-      celebrate()
+      if (editing) {
+        toast('Partida corregida')
+      } else {
+        celebrate()
+        const id = (saved as Game).id
+        toast(`Apuntada: ${num(fields.tickets)} tickets por ${eur(fields.cents)}`, {
+          label: 'Deshacer',
+          run: async () => {
+            if (!(await attempt(() => store.remove(id), 'No se ha podido deshacer. Comprueba la conexión.'))) return
+            s.games = s.games.filter((g) => g.id !== id)
+            render()
+          },
+        })
+      }
       const after = totals(mine())
       countUp($('#tTk'), before.tickets, after.tickets, num)
       countUp($('#tEur'), before.cents, after.cents, eur)
       if (after.ratio !== null) countUp($('#tR'), before.ratio ?? 0, after.ratio, num)
     }
+  }
+
+  function upsertGame(game: Game): void {
+    s.games = s.games.some((g) => g.id === game.id) ? s.games.map((g) => (g.id === game.id ? game : g)) : [...s.games, game]
   }
 
   function countUp(el: HTMLElement, from: number, to: number, fmt: (v: number) => string): void {
@@ -484,6 +542,11 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
     if (change.type === 'machine') {
       if (!s.machines.some((m) => m.id === change.machine.id)) s.machines.push(change.machine)
       renderMachines()
+      return
+    }
+    if (change.type === 'updated') {
+      upsertGame(change.game)
+      refreshLive()
       return
     }
     if (change.type === 'added') {
