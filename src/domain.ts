@@ -98,3 +98,11 @@ export function summarize(games: Game[], sessionId: string, players: PlayerId[])
   const best = played.reduce<Game | null>((top, g) => (top === null || g.tickets > top.tickets ? g : top), null)
   return { games: played.length, tickets: t.tickets, cents: t.cents, winner: first?.value ? first.player : null, best }
 }
+
+/** Jugadores que iban por detrás de `me` y ahora van por delante. */
+export function overtakers(before: RankRow[], after: RankRow[], me: PlayerId): PlayerId[] {
+  const pos = (rows: RankRow[], p: PlayerId) => rows.findIndex((r) => r.player === p)
+  const was = pos(before, me)
+  const now = pos(after, me)
+  return after.slice(0, now).map((r) => r.player).filter((p) => pos(before, p) > was)
+}
