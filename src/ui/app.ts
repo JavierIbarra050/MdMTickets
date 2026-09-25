@@ -2,11 +2,14 @@ import {
   chase,
   currentSession,
   gamesOf,
+  inPeriod,
+  machineStats,
   overtakers,
   ranking,
   summarize,
   totals,
   type Game,
+  type Machine,
   type Metric,
   type Period,
   type PlayerId,
@@ -26,6 +29,9 @@ const DEFAULT_CENTS = 100
 interface State {
   games: Game[]
   sessions: Session[]
+  machines: Machine[]
+  /** Máquina elegida para la próxima partida. */
+  machineId: string | null
   user: PlayerId | null
   jewels: Partial<Record<PlayerId, string>>
   tickets: number
@@ -59,6 +65,9 @@ const seg = <T extends string>(id: string, options: Array<[T, string]>, current:
     .map(([v, l]) => `<button data-v="${v}" aria-pressed="${v === current}">${l}</button>`)
     .join('')}</div>`
 
+const escapeHTML = (text: string): string =>
+  text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+
 const ago = (t: number): string => {
   const m = Math.round((Date.now() - t) / 60000)
   if (m < 1) return 'ahora mismo'
@@ -75,6 +84,8 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
       return []
     }),
     sessions: (await store.loadSessions?.().catch(() => [])) ?? [],
+    machines: (await store.loadMachines?.().catch(() => [])) ?? [],
+    machineId: null,
     user: prefs.read<PlayerId | null>('tk.user', null),
     jewels: prefs.read('tk.jewels', {}),
     tickets: 0,
@@ -84,6 +95,8 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
     metric: 'tickets',
   }
   const hasSessions = typeof store.startSession === 'function'
+  const hasMachines = typeof store.addMachine === 'function'
+  const machineName = (id: string): string => s.machines.find((m) => m.id === id)?.name ?? 'Máquina'
   const openSession = (): Session | null => s.sessions.find((x) => x.endedAt === null) ?? null
   if (openSession()) s.period = 'session'
   const summariesShown = new Set<string>()
@@ -146,6 +159,7 @@ export async function mountApp(root: HTMLElement, store: GameStore, onWrongCode?
 <div class="totals"><div class="tot"><b id="tTk">${num(t.tickets)}</b><small>tickets</small></div><div class="tot"><b id="tEur">${eur(t.cents)}</b><small>gastado</small></div><div class="tot"><b id="tR">${t.ratio === null ? '–' : num(t.ratio)}</b><small>tickets/€</small></div></div>
 ${hasSessions ? '<div class="sess" id="sess"></div>' : ''}
 <div class="play card"><p class="lbl">Tickets ganados</p>${dialHTML()}
+${hasMachines ? '<p class="lbl">Máquina</p><div class="machines" id="machines"></div>' : ''}
 <p class="lbl">Dinero metido</p><div class="money"><output id="eurv">${eur(s.cents)}</output><button class="clr" id="clr">Poner a 0</button></div>
 <div class="coins">${COINS.map(
       (c) => `<button class="coin" data-c="${c}" aria-label="Sumar ${eur(c)}"><span>${c < 100 ? c : c / 100}</span><small>${c < 100 ? 'cént.' : c > 100 ? 'euros' : 'euro'}</small></button>`,
@@ -189,7 +203,63 @@ ${seg('metric', METRICS, s.metric)}
         return `<li class="${r.player === s.user ? 'you' : ''}" style="--c:${color(p)};--i:${i}"><span class="pos">${i + 4}</span><span class="av">${p.emoji}</span><span class="nm">${p.name}${r.player === s.user ? ' · tú' : ''}</span><span class="val">${fmtValue(m, r.value)}${r.value === null ? '' : UNIT[m]}</span><i class="bar" style="--w:${((r.value ?? 0) / top) * 100}%"></i></li>`
       })
       .join('')}</ol>
-<p class="chase">${msg}</p>`
+<p class="chase">${msg}</p>${hasMachines ? machinesBoardHTML() : ''}`
+  }
+
+  function machinesBoardHTML(): string {
+    const stats = machineStats(inPeriod(s.games, s.period, Date.now(), currentSession(s.sessions)?.id ?? null))
+    return `<div class="mach card"><p class="lbl">Máquinas que más rinden</p>${
+      stats.length
+        ? `<ol>${stats
+            .map(
+              (m, i) =>
+                `<li><span class="pos">${i + 1}</span><span class="nm">${machineName(m.machineId)}<small>${m.games} ${m.games === 1 ? 'partida' : 'partidas'}</small></span><span class="val">${fmtValue('ratio', m.totals.ratio)}${m.totals.ratio === null ? '' : ' tk/€'}</span></li>`,
+            )
+            .join('')}</ol>`
+        : '<p class="empty">Elige la máquina al apuntar y aquí verás cuál rinde más.</p>'
+    }</div>`
+  }
+
+  /** Chips de máquina: la de tu última partida viene elegida; tocar la elegida la quita. */
+  function renderMachines(): void {
+    const box = screen.querySelector<HTMLElement>('#machines')
+    if (!box) return
+    const lastUse = new Map<string, number>()
+    mine().forEach((g) => g.machineId && lastUse.set(g.machineId, g.createdAt))
+    const ordered = [...s.machines].sort(
+      (a, b) => (lastUse.get(b.id) ?? 0) - (lastUse.get(a.id) ?? 0) || a.name.localeCompare(b.name, 'es'),
+    )
+    box.innerHTML = `${ordered
+      .map((m) => `<button class="chip" data-id="${m.id}" aria-pressed="${m.id === s.machineId}">${escapeHTML(m.name)}</button>`)
+      .join('')}<button class="chip add" id="addMachine">+ Nueva</button>`
+    box.querySelectorAll<HTMLButtonElement>('.chip[data-id]').forEach(
+      (b) =>
+        (b.onclick = () => {
+          s.machineId = s.machineId === b.dataset.id ? null : b.dataset.id!
+          renderMachines()
+        }),
+    )
+    box.querySelector<HTMLButtonElement>('#addMachine')!.onclick = () => {
+      box.insertAdjacentHTML(
+        'beforeend',
+        '<form class="chip-form" id="machineForm"><input id="machineName" maxlength="40" placeholder="Nombre de la máquina" aria-label="Nombre de la máquina" required /><button class="chip">Crear</button></form>',
+      )
+      box.querySelector('#addMachine')!.remove()
+      const form = box.querySelector<HTMLFormElement>('#machineForm')!
+      const input = form.querySelector<HTMLInputElement>('input')!
+      input.focus()
+      form.onsubmit = async (e) => {
+        e.preventDefault()
+        const name = input.value.trim()
+        if (!name) return
+        await attempt(async () => {
+          const machine = await store.addMachine!(name)
+          if (!s.machines.some((m) => m.id === machine.id)) s.machines.push(machine)
+          s.machineId = machine.id
+        }, 'No se ha podido crear la máquina. Comprueba la conexión.')
+        renderMachines()
+      }
+    }
   }
 
   function render(): void {
@@ -315,6 +385,8 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
 
   function bindPlay(u: Player): void {
     s.tickets = 0
+    s.machineId = mine().at(-1)?.machineId ?? null
+    renderMachines()
     $('#swap').onclick = () => choose(null)
     const jewels = $('#jewels')
     const tone = $('#tone')
@@ -371,7 +443,7 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
       const go = $<HTMLButtonElement>('#go')
       go.disabled = true
       const ok = await attempt(async () => {
-        s.games.push(await store.add({ player: u.id, tickets: s.tickets, cents: s.cents }))
+        s.games.push(await store.add({ player: u.id, tickets: s.tickets, cents: s.cents, machineId: s.machineId }))
       }, 'No se ha podido apuntar la partida. Comprueba la conexión y vuelve a probar.')
       go.disabled = false
       if (!ok) return
@@ -409,6 +481,11 @@ ${best && sum.best ? `<p class="sum-best">Mejor partida: ${best.emoji} ${best.na
 
   store.subscribe?.((change) => {
     if (change.type === 'session') return upsertSession(change.session)
+    if (change.type === 'machine') {
+      if (!s.machines.some((m) => m.id === change.machine.id)) s.machines.push(change.machine)
+      renderMachines()
+      return
+    }
     if (change.type === 'added') {
       if (s.games.some((g) => g.id === change.game.id)) return
       const standings = () => ranking(s.games, PLAYERS.map((p) => p.id), 'tickets', s.period, Date.now(), currentSession(s.sessions)?.id ?? null)

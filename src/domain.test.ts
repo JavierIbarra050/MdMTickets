@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { chase, currentSession, gamesOf, overtakers, ranking, summarize, totals, type Game } from './domain'
+import { chase, currentSession, gamesOf, machineStats, overtakers, ranking, summarize, totals, type Game } from './domain'
 
 const game = (tickets: number, cents: number, player: Game['player'] = 'jon'): Game => ({
   id: `${player}-${tickets}-${cents}`,
@@ -101,5 +101,21 @@ describe('overtakers', () => {
 
   it('ignores players that were already ahead', () => {
     expect(overtakers(rows('alej', 'jon'), rows('alej', 'jon'), 'jon')).toEqual([])
+  })
+})
+
+describe('machineStats', () => {
+  const on = (g: Game, machineId: string | null): Game => ({ ...g, machineId })
+
+  it('orders machines by tickets per euro', () => {
+    const stats = machineStats([on(game(50, 100), 'a'), on(game(90, 100), 'b'), on(game(30, 100), 'a')])
+    expect(stats.map((m) => [m.machineId, m.games, m.totals.ratio])).toEqual([
+      ['b', 1, 90],
+      ['a', 2, 40],
+    ])
+  })
+
+  it('ignores games without machine', () => {
+    expect(machineStats([on(game(50, 100), null)])).toEqual([])
   })
 })

@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Game, PlayerId, Session } from './domain'
+import type { Game, Machine, PlayerId, Session } from './domain'
 import type { GameChange, GameStore, NewGame } from './store'
 
 interface GameRow {
@@ -9,6 +9,7 @@ interface GameRow {
   cents: number
   created_at: string
   session_id?: string | null
+  machine_id?: string | null
 }
 
 interface SessionRow {
@@ -33,6 +34,7 @@ export const rowToGame = (row: GameRow): Game => ({
   cents: row.cents,
   createdAt: Date.parse(row.created_at),
   sessionId: row.session_id ?? null,
+  machineId: row.machine_id ?? null,
 })
 
 const fail = (error: { code?: string; message: string }): never => {
@@ -60,7 +62,13 @@ export class SupabaseGameStore implements GameStore {
   }
 
   async add(game: NewGame): Promise<Game> {
-    const { data, error } = await this.client.rpc('add_game', { code: this.code, ...game })
+    const { data, error } = await this.client.rpc('add_game', {
+      code: this.code,
+      player: game.player,
+      tickets: game.tickets,
+      cents: game.cents,
+      machine_id: game.machineId ?? null,
+    })
     if (error) fail(error)
     return rowToGame(data as GameRow)
   }
@@ -74,11 +82,27 @@ export class SupabaseGameStore implements GameStore {
       .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'games' }, (p) =>
         onChange({ type: 'removed', id: (p.old as { id: string }).id }),
       )
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'machines' }, (p) =>
+        onChange({ type: 'machine', machine: { id: p.new.id as string, name: p.new.name as string } }),
+      )
       .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, (p) => {
         if (p.eventType !== 'DELETE') onChange({ type: 'session', session: rowToSession(p.new as SessionRow) })
       })
       .subscribe()
     return () => void this.client.removeChannel(channel)
+  }
+
+  async loadMachines(): Promise<Machine[]> {
+    const { data, error } = await this.client.from('machines').select('id, name').order('name')
+    if (error) fail(error)
+    return data as Machine[]
+  }
+
+  async addMachine(name: string): Promise<Machine> {
+    const { data, error } = await this.client.rpc('add_machine', { code: this.code, name })
+    if (error) fail(error)
+    const row = data as Machine
+    return { id: row.id, name: row.name }
   }
 
   async loadSessions(): Promise<Session[]> {

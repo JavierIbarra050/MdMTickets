@@ -7,6 +7,12 @@ export interface Game {
   cents: number
   createdAt: number
   sessionId?: string | null
+  machineId?: string | null
+}
+
+export interface Machine {
+  id: string
+  name: string
 }
 
 export interface Session {
@@ -42,6 +48,13 @@ export interface RankRow {
 
 const sameDay = (a: number, b: number): boolean => new Date(a).toDateString() === new Date(b).toDateString()
 
+export const inPeriod = (games: Game[], period: Period, now: number, sessionId: string | null): Game[] =>
+  period === 'all'
+    ? games
+    : period === 'today'
+      ? games.filter((g) => sameDay(g.createdAt, now))
+      : games.filter((g) => sessionId !== null && g.sessionId === sessionId)
+
 /** Ordena a los jugadores por la métrica, de mayor a menor; los que no tienen valor van al final. */
 export function ranking(
   games: Game[],
@@ -51,15 +64,9 @@ export function ranking(
   now = Date.now(),
   sessionId: string | null = null,
 ): RankRow[] {
-  const inPeriod =
-    period === 'all'
-      ? games
-      : period === 'today'
-        ? games.filter((g) => sameDay(g.createdAt, now))
-        : games.filter((g) => sessionId !== null && g.sessionId === sessionId)
   return players
     .map((player) => {
-      const t = totals(gamesOf(inPeriod, player))
+      const t = totals(gamesOf(inPeriod(games, period, now, sessionId), player))
       return { player, totals: t, value: t[metric] }
     })
     .sort((a, b) => (b.value ?? -1) - (a.value ?? -1))
@@ -105,4 +112,21 @@ export function overtakers(before: RankRow[], after: RankRow[], me: PlayerId): P
   const was = pos(before, me)
   const now = pos(after, me)
   return after.slice(0, now).map((r) => r.player).filter((p) => pos(before, p) > was)
+}
+
+export interface MachineStats {
+  machineId: string
+  games: number
+  totals: Totals
+}
+
+/** Rendimiento de cada máquina, de más a menos tickets por euro. */
+export function machineStats(games: Game[]): MachineStats[] {
+  const byMachine = new Map<string, Game[]>()
+  games.forEach((g) => {
+    if (g.machineId) byMachine.set(g.machineId, [...(byMachine.get(g.machineId) ?? []), g])
+  })
+  return [...byMachine]
+    .map(([machineId, played]) => ({ machineId, games: played.length, totals: totals(played) }))
+    .sort((a, b) => (b.totals.ratio ?? -1) - (a.totals.ratio ?? -1) || b.games - a.games)
 }
